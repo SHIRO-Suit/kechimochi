@@ -59,6 +59,9 @@ pub fn import_csv(conn: &mut Connection, file_path: &str) -> Result<usize, Strin
                     media_type: record.media_type.clone(),
                     status: "Completed".into(), // Default to Completed for historical data
                     language: record.language.clone(),
+                    description: "".to_string(),
+                    cover_image: "".to_string(),
+                    extra_data: "{}".to_string(),
                 };
                 
                 match db::add_media_with_id(&tx, &new_media) {

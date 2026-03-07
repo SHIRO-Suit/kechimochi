@@ -7,6 +7,9 @@ pub struct Media {
     pub media_type: String, // "Reading", "Watching", "Playing", "None", "Listening"
     pub status: String,     // "Active", "Paused", "Completed", "Dropped", "Planned"
     pub language: String,
+    pub description: String,
+    pub cover_image: String,
+    pub extra_data: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

@@ -332,3 +332,31 @@ input:focus, select:focus {
   width: 100%;
   height: 300px;
 }
+
+/* Editable elements styling */
+#media-title, #media-type, #media-desc, .editable-extra, #media-cover-img {
+  transition: all var(--transition-fast);
+  border-radius: var(--radius-sm);
+  padding: 0.2rem;
+  margin: -0.2rem;
+}
+
+#media-title:hover, #media-type:hover, #media-desc:hover, .editable-extra:hover, #media-cover-img:hover {
+  background-color: var(--bg-card-hover);
+  box-shadow: 0 0 0 1px var(--accent-green);
+}
+
+#media-cover-img:hover {
+  filter: brightness(1.1);
+}
+
+
+.delete-extra-btn:hover {
+  text-shadow: 0 0 4px var(--accent-red);
+}
+
+
+.dashboard-media-link:hover {
+    filter: brightness(1.2);
+}
+

@@ -6,6 +6,9 @@ export interface Media {
   media_type: string;
   status: string;
   language: string;
+  description: string;
+  cover_image: string;
+  extra_data: string;
 }
 
 export interface ActivityLog {
@@ -84,4 +87,16 @@ export async function listProfiles(): Promise<string[]> {
 
 export async function exportCsv(filePath: string, startDate?: string, endDate?: string): Promise<number> {
   return await invoke('export_csv', { filePath, startDate, endDate });
+}
+
+export async function getLogsForMedia(mediaId: number): Promise<ActivitySummary[]> {
+  return await invoke('get_logs_for_media', { mediaId });
+}
+
+export async function uploadCoverImage(mediaId: number, path: string): Promise<string> {
+  return await invoke('upload_cover_image', { mediaId, path });
+}
+
+export async function readFileBytes(path: string): Promise<number[]> {
+  return await invoke('read_file_bytes', { path });
 }

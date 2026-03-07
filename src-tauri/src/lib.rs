@@ -62,6 +62,58 @@ fn get_heatmap(state: State<DbState>) -> Result<Vec<DailyHeatmap>, String> {
 }
 
 #[tauri::command]
+fn get_logs_for_media(state: State<DbState>, media_id: i64) -> Result<Vec<ActivitySummary>, String> {
+    let conn = state.conn.lock().unwrap();
+    db::get_logs_for_media(&conn, media_id).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn upload_cover_image(app_handle: tauri::AppHandle, state: State<DbState>, media_id: i64, path: String) -> Result<String, String> {
+    let app_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?;
+        
+    let img_dir = app_dir.join("covers");
+    std::fs::create_dir_all(&img_dir).map_err(|e| e.to_string())?;
+
+    let src = std::path::Path::new(&path);
+    let ext = src.extension().and_then(|e| e.to_str()).unwrap_or("png");
+    let dest_file = format!("{}.{}", media_id, ext);
+    let dest = img_dir.join(&dest_file);
+    
+    let conn = state.conn.lock().unwrap();
+    let old_cover: String = conn.query_row(
+        "SELECT cover_image FROM media WHERE id = ?1",
+        rusqlite::params![media_id],
+        |row| row.get(0),
+    ).unwrap_or_default();
+    
+    if !old_cover.is_empty() {
+        let old_path = std::path::Path::new(&old_cover);
+        if old_path.exists() {
+            let _ = std::fs::remove_file(old_path);
+        }
+    }
+    
+    std::fs::copy(src, &dest).map_err(|e| e.to_string())?;
+    
+    let dest_str = dest.to_string_lossy().to_string();
+    
+    conn.execute(
+        "UPDATE media SET cover_image = ?1 WHERE id = ?2",
+        rusqlite::params![dest_str, media_id],
+    ).map_err(|e| e.to_string())?;
+
+    Ok(dest_str)
+}
+
+#[tauri::command]
+fn read_file_bytes(path: String) -> Result<Vec<u8>, String> {
+    std::fs::read(&path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn import_csv(state: State<DbState>, file_path: String) -> Result<usize, String> {
     let mut conn = state.conn.lock().unwrap();
     csv_import::import_csv(&mut conn, &file_path)
@@ -176,7 +228,10 @@ pub fn run() {
             switch_profile,
             wipe_profile,
             delete_profile,
-            list_profiles
+            list_profiles,
+            get_logs_for_media,
+            upload_cover_image,
+            read_file_bytes
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

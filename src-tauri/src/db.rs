@@ -11,10 +11,18 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
             title TEXT NOT NULL UNIQUE,
             media_type TEXT NOT NULL,
             status TEXT NOT NULL,
-            language TEXT NOT NULL
+            language TEXT NOT NULL,
+            description TEXT DEFAULT '',
+            cover_image TEXT DEFAULT '',
+            extra_data TEXT DEFAULT '{}'
         )",
         [],
     )?;
+
+    // Try to add the columns to existing tables (fails gracefully if they already exist)
+    let _ = conn.execute("ALTER TABLE media ADD COLUMN description TEXT DEFAULT ''", []);
+    let _ = conn.execute("ALTER TABLE media ADD COLUMN cover_image TEXT DEFAULT ''", []);
+    let _ = conn.execute("ALTER TABLE media ADD COLUMN extra_data TEXT DEFAULT '{}'", []);
 
     conn.execute(
         "CREATE TABLE IF NOT EXISTS activity_logs (
@@ -84,7 +92,7 @@ pub fn list_profiles(app_handle: &tauri::AppHandle) -> std::result::Result<Vec<S
 
 // Media Operations
 pub fn get_all_media(conn: &Connection) -> Result<Vec<Media>> {
-    let mut stmt = conn.prepare("SELECT id, title, media_type, status, language FROM media")?;
+    let mut stmt = conn.prepare("SELECT id, title, media_type, status, language, description, cover_image, extra_data FROM media")?;
     let media_iter = stmt.query_map([], |row| {
         Ok(Media {
             id: row.get(0)?,
@@ -92,6 +100,9 @@ pub fn get_all_media(conn: &Connection) -> Result<Vec<Media>> {
             media_type: row.get(2)?,
             status: row.get(3)?,
             language: row.get(4)?,
+            description: row.get(5).unwrap_or_default(),
+            cover_image: row.get(6).unwrap_or_default(),
+            extra_data: row.get(7).unwrap_or_else(|_| "{}".to_string()),
         })
     })?;
 
@@ -104,20 +115,23 @@ pub fn get_all_media(conn: &Connection) -> Result<Vec<Media>> {
 
 pub fn add_media_with_id(conn: &Connection, media: &Media) -> Result<i64> {
     conn.execute(
-        "INSERT INTO media (title, media_type, status, language) VALUES (?1, ?2, ?3, ?4)",
-        params![media.title, media.media_type, media.status, media.language],
+        "INSERT INTO media (title, media_type, status, language, description, cover_image, extra_data) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        params![media.title, media.media_type, media.status, media.language, media.description, media.cover_image, media.extra_data],
     )?;
     Ok(conn.last_insert_rowid())
 }
 
 pub fn update_media(conn: &Connection, media: &Media) -> Result<()> {
     conn.execute(
-        "UPDATE media SET title = ?1, media_type = ?2, status = ?3, language = ?4 WHERE id = ?5",
+        "UPDATE media SET title = ?1, media_type = ?2, status = ?3, language = ?4, description = ?5, cover_image = ?6, extra_data = ?7 WHERE id = ?8",
         params![
             media.title,
             media.media_type,
             media.status,
             media.language,
+            media.description,
+            media.cover_image,
+            media.extra_data,
             media.id.unwrap() // Must have an ID
         ],
     )?;
@@ -153,6 +167,33 @@ pub fn get_logs(conn: &Connection) -> Result<Vec<ActivitySummary>> {
          ORDER BY a.date DESC",
     )?;
     let logs_iter = stmt.query_map([], |row| {
+        Ok(ActivitySummary {
+            id: row.get(0)?,
+            media_id: row.get(1)?,
+            title: row.get(2)?,
+            media_type: row.get(3)?,
+            duration_minutes: row.get(4)?,
+            date: row.get(5)?,
+            language: row.get(6)?,
+        })
+    })?;
+
+    let mut log_list = Vec::new();
+    for log in logs_iter {
+        log_list.push(log?);
+    }
+    Ok(log_list)
+}
+
+pub fn get_logs_for_media(conn: &Connection, media_id: i64) -> Result<Vec<ActivitySummary>> {
+    let mut stmt = conn.prepare(
+        "SELECT a.id, a.media_id, m.title, m.media_type, a.duration_minutes, a.date, m.language 
+         FROM activity_logs a 
+         JOIN media m ON a.media_id = m.id
+         WHERE a.media_id = ?1
+         ORDER BY a.date DESC",
+    )?;
+    let logs_iter = stmt.query_map(params![media_id], |row| {
         Ok(ActivitySummary {
             id: row.get(0)?,
             media_id: row.get(1)?,
@@ -210,6 +251,9 @@ mod tests {
             media_type: "Reading".to_string(),
             status: "Active".to_string(),
             language: "Japanese".to_string(),
+            description: "".to_string(),
+            cover_image: "".to_string(),
+            extra_data: "{}".to_string(),
         }
     }
 
@@ -261,6 +305,9 @@ mod tests {
             media_type: "Watching".to_string(),
             status: "Completed".to_string(),
             language: "Japanese".to_string(),
+            description: "".to_string(),
+            cover_image: "".to_string(),
+            extra_data: "{}".to_string(),
         };
         update_media(&conn, &updated).unwrap();
 

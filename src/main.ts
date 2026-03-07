@@ -1,5 +1,6 @@
 import { Dashboard } from './components/dashboard';
 import { Library } from './components/library';
+import { MediaView } from './components/media_view';
 import { getAllMedia, addLog, importCsv, switchProfile, wipeProfile, deleteProfile, addMedia, updateMedia, listProfiles, exportCsv } from './api';
 import { customPrompt, customConfirm, showExportCsvModal, customAlert, buildCalendar } from './modals';
 import { open, save } from '@tauri-apps/plugin-dialog';
@@ -17,6 +18,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   
   const dashboard = new Dashboard(viewContainer);
   const library = new Library(viewContainer);
+  const mediaView = new MediaView(viewContainer);
   
   let currentView = 'dashboard';
   let currentProfile = localStorage.getItem('kechimochi_profile') || 'default';
@@ -52,6 +54,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       
       if (currentView === 'dashboard') dashboard.render();
       if (currentView === 'library') library.render();
+      if (currentView === 'media') mediaView.render();
   });
 
   document.getElementById('btn-add-profile')?.addEventListener('click', async () => {
@@ -64,6 +67,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         if (currentView === 'dashboard') dashboard.render();
         if (currentView === 'library') library.render();
+        if (currentView === 'media') mediaView.render();
     }
   });
 
@@ -89,6 +93,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           
           if (currentView === 'dashboard') dashboard.render();
           if (currentView === 'library') library.render();
+          if (currentView === 'media') mediaView.render();
       }
   });
 
@@ -101,6 +106,7 @@ document.addEventListener('DOMContentLoaded', async () => {
               await customAlert("Success", "Data wiped successfully.");
               if (currentView === 'dashboard') dashboard.render();
               if (currentView === 'library') library.render();
+              if (currentView === 'media') mediaView.render();
           } else if (name) {
               await customAlert("Error", "Profile name did not match, aborting wipe.");
           }
@@ -123,8 +129,26 @@ document.addEventListener('DOMContentLoaded', async () => {
       } else if (view === 'library') {
         currentView = 'library';
         library.render();
+      } else if (view === 'media') {
+        currentView = 'media';
+        mediaView.render();
       }
     });
+  });
+
+  window.addEventListener('app-navigate', (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail && detail.view) {
+          if (detail.view === 'media' && detail.focusMediaId !== undefined) {
+              currentView = 'media';
+              const navLinks = document.querySelectorAll('.nav-link');
+              navLinks.forEach(n => n.classList.remove('active'));
+              const targetNav = document.querySelector(`.nav-link[data-view="media"]`);
+              if (targetNav) targetNav.classList.add('active');
+              
+              mediaView.jumpToMedia(detail.focusMediaId);
+          }
+      }
   });
 
   // Modals
@@ -184,7 +208,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             title: mediaTitle,
             media_type: typeResp,
             status: "Active",
-            language: "Japanese"
+            language: "Japanese",
+            description: "",
+            cover_image: "",
+            extra_data: "{}"
         });
     }
 
@@ -196,6 +223,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Refresh current view
     if (currentView === 'dashboard') dashboard.render();
     if (currentView === 'library') library.render();
+    if (currentView === 'media') mediaView.render();
   });
 
   // Import CSV
@@ -216,6 +244,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Refresh
         if (currentView === 'dashboard') dashboard.render();
         if (currentView === 'library') library.render();
+        if (currentView === 'media') mediaView.render();
       }
     } catch (e) {
       await customAlert("Error", `Import failed: ${e}`);

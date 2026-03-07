@@ -542,7 +542,7 @@ export class Dashboard {
           <span style="color: var(--text-secondary);">logged</span> 
           <span>${log.duration_minutes} minutes</span> 
           <span style="color: var(--text-secondary);">of ${log.media_type}</span> 
-          <span style="color: var(--text-primary); font-weight: 600;">${log.title}</span>
+          <a class="dashboard-media-link" data-media-id="${log.media_id}" style="color: var(--text-primary); font-weight: 600; cursor: pointer; text-decoration: underline; text-decoration-color: var(--accent-blue);">${log.title}</a>
         </div>
         <div style="display: flex; align-items: center; gap: 1rem;">
           <div style="color: var(--text-secondary);">${log.date}</div>
@@ -559,6 +559,13 @@ export class Dashboard {
                 await deleteLog(id);
                 this.loadData();
             }
+        });
+    });
+
+    list.querySelectorAll('.dashboard-media-link').forEach(link => {
+        link.addEventListener('click', (e) => {
+            const mediaId = parseInt((e.target as HTMLElement).getAttribute('data-media-id')!);
+            window.dispatchEvent(new CustomEvent('app-navigate', { detail: { view: 'media', focusMediaId: mediaId } }));
         });
     });
   }

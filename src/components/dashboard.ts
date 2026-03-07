@@ -315,6 +315,15 @@ export class Dashboard {
     };
 
     const cells = [];
+    const firstDayOfYear = new Date(this.currentHeatmapYear, 0, 1);
+    const dayOfWeek = firstDayOfYear.getDay(); // 0=Sun
+    const offset = (dayOfWeek === 0 ? 6 : dayOfWeek - 1);
+    
+    // Add empty cells for padding to Monday
+    for (let i = 0; i < offset; i++) {
+        cells.push(`<div class="heatmap-cell" style="opacity: 0; pointer-events: none;"></div>`);
+    }
+
     for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
         const dateStr = getLocalISODate(d);
         
@@ -368,7 +377,13 @@ export class Dashboard {
         const endDay = new Date(today);
         endDay.setDate(today.getDate() - (7 * this.timeRangeOffset));
         const startDay = new Date(endDay);
-        startDay.setDate(endDay.getDate() - 6);
+        // getDay() returns 0 for Sunday, 1 for Monday, etc.
+        // We want Monday (1) to be the first day.
+        const dayOfWeek = endDay.getDay(); 
+        const diffToMonday = (dayOfWeek === 0 ? 6 : dayOfWeek - 1);
+        startDay.setDate(endDay.getDate() - diffToMonday);
+        // Now endDay should be the Sunday of that week
+        endDay.setDate(startDay.getDate() + 6);
         
         validStart = getLocalISODate(startDay);
         validEnd = getLocalISODate(endDay);
@@ -397,8 +412,13 @@ export class Dashboard {
         
         getBucketIndex = (dateStr: string) => {
             if (dateStr >= validStart && dateStr <= validEnd) {
-                const day = parseInt(dateStr.split('-')[2]);
-                return Math.floor((day - 1) / 7);
+                const date = new Date(dateStr + "T00:00:00");
+                const firstOfMonth = new Date(y, m, 1);
+                const firstDayWeekday = firstOfMonth.getDay(); // 0=Sun, 1=Mon
+                const offset = (firstDayWeekday === 0 ? 6 : firstDayWeekday - 1);
+                
+                const day = date.getDate();
+                return Math.floor((day + offset - 1) / 7);
             }
             return -1;
         };

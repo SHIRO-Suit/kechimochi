@@ -328,13 +328,17 @@ export class Dashboard {
         const dateStr = getLocalISODate(d);
         
         const minutes = dateMap.get(dateStr) || 0;
-        let level = 0;
-        if (minutes > 0 && minutes <= 30) level = 1;
-        else if (minutes > 30 && minutes <= 60) level = 2;
-        else if (minutes > 60 && minutes <= 120) level = 3;
-        else if (minutes > 120) level = 4;
+        let cellStyle = "";
+        if (minutes > 0) {
+            const ratio = Math.min(1, (minutes - 1) / 359);
+            // Saturation 30% -> 100%
+            const saturation = 30 + (ratio * 70);
+            // Lightness 45% (Darker) -> 86% (Brighter/Pastel)
+            const lightness = 45 + (ratio * 41);
+            cellStyle = `style="background-color: hsl(353, ${saturation}%, ${lightness}%);"`;
+        }
 
-        cells.push(`<div class="heatmap-cell" data-level="${level}" title="${dateStr}: ${minutes} mins"></div>`);
+        cells.push(`<div class="heatmap-cell" ${cellStyle} title="${dateStr}: ${minutes} mins"></div>`);
     }
 
     for (let i = 0; i < cells.length; i += 7) {

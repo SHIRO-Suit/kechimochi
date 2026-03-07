@@ -321,10 +321,7 @@ input:focus, select:focus {
   background-color: #3b3b4a;
   min-width: 0;
 }
-.heatmap-cell[data-level="1"] { background-color: #725b80; }
-.heatmap-cell[data-level="2"] { background-color: #957dad; }
-.heatmap-cell[data-level="3"] { background-color: #b19cd9; }
-.heatmap-cell[data-level="4"] { background-color: #ffb3ba; }
+/* Gradient handled in JS */
 
 /* Charts */
 .chart-container-wrapper {

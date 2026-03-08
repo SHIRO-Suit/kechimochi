@@ -547,12 +547,24 @@ export class MediaView {
 
       // Import Metadata
       document.getElementById('btn-import-meta')?.addEventListener('click', async () => {
-          const url = await customPrompt(`Enter a valid URL for ${media.content_type} metadata:`);
+          let url = await customPrompt(`Enter a valid URL for ${media.content_type} metadata:`);
           if (!url || url.trim() === "") return;
+          url = url.trim();
+          
+          if (url.includes("cmoa.jp/title/")) {
+              const volStr = await customPrompt("Cmoa detected. Enter Volume Number (leave empty for Volume 1):", "1");
+              if (volStr !== null) {
+                  const volNum = parseInt(volStr.trim(), 10);
+                  if (!isNaN(volNum) && volNum > 1) {
+                      if (!url.endsWith('/')) url += '/';
+                      url += `vol/${volNum}/`;
+                  }
+              }
+          }
           
           try {
               document.getElementById('btn-import-meta')!.innerText = "Fetching...";
-              const scraped = await fetchMetadataForUrl(url.trim(), media.content_type || "Unknown");
+              const scraped = await fetchMetadataForUrl(url, media.content_type || "Unknown");
               if (!scraped) throw new Error("Could not parse data.");
               
               const currentExtra = JSON.parse(media.extra_data || "{}");

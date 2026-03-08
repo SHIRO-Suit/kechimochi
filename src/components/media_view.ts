@@ -10,6 +10,8 @@ export class MediaView {
   private currentIndex: number = 0;
   private targetMediaId: number | null = null;
   private viewMode: 'grid' | 'detail' = 'grid';
+  private gridSearchQuery: string = '';
+  private gridTypeFilter: string = 'All';
   private imageCache: Map<string, string> = new Map();
 
   constructor(container: HTMLElement) {
@@ -102,14 +104,21 @@ export class MediaView {
                     <div style="font-size: 0.75rem; opacity: 0.6; text-transform: uppercase; letter-spacing: 1px;">No Image</div>
                  </div>`;
 
+          const typeMatch = this.gridTypeFilter === 'All' || (media.content_type || 'Unknown') === this.gridTypeFilter;
+          const matchesQuery = media.title.toLowerCase().includes(this.gridSearchQuery.toLowerCase());
+          const displayStyle = (matchesQuery && typeMatch) ? 'display: flex;' : 'display: none;';
+
           return `
-              <div class="media-grid-item" data-index="${index}" title="${media.title}" style="cursor: pointer; border-radius: var(--radius-md); overflow: hidden; background: var(--bg-dark); border: 1px solid var(--border-color); display: flex; flex-direction: column; height: 100%;">
+              <div class="media-grid-item" data-index="${index}" data-type="${media.content_type || 'Unknown'}" title="${media.title}" style="cursor: pointer; border-radius: var(--radius-md); overflow: hidden; background: var(--bg-dark); border: 1px solid var(--border-color); flex-direction: column; height: 100%; ${displayStyle}">
                   ${imageContent}
               </div>
           `;
       });
 
       const gridItemsHtml = (await Promise.all(gridItemsHtmlPromises)).join('');
+
+      const uniqueTypes = Array.from(new Set(this.currentMediaList.map(m => m.content_type || 'Unknown'))).sort();
+      const typeOptionsHtml = uniqueTypes.map(t => `<option value="${t}" ${this.gridTypeFilter === t ? 'selected' : ''}>${t}</option>`).join('');
 
       root.innerHTML = `
           <style>
@@ -123,14 +132,52 @@ export class MediaView {
                   z-index: 10;
               }
           </style>
-          <div style="padding: 0 1rem;">
-              <h2 style="margin: 0.5rem 0; color: var(--text-primary);">Library</h2>
+          <div style="padding: 0 1rem; display: flex; gap: 1rem; justify-content: space-between; align-items: center;">
+              <h2 style="margin: 0.5rem 0; color: var(--text-primary); white-space: nowrap;">Library</h2>
+              <input type="text" id="grid-search-filter" placeholder="Search title..." style="flex: 1; min-width: 0; padding: 0.4rem 0.8rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background: var(--bg-dark); color: var(--text-primary); outline: none;" value="${this.gridSearchQuery}" autocomplete="off" />
+              <select id="grid-type-select" style="padding: 0.4rem 0.8rem; border-radius: var(--radius-sm); border: 1px solid var(--border-color); background: var(--bg-dark); color: var(--text-primary); outline: none; cursor: pointer;">
+                  <option value="All" ${this.gridTypeFilter === 'All' ? 'selected' : ''}>All Types</option>
+                  ${typeOptionsHtml}
+              </select>
           </div>
           
           <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); grid-auto-rows: 320px; gap: 1.5rem; overflow-y: auto; flex: 1; padding: 0.5rem 1rem 2rem 1rem; align-content: flex-start;">
               ${gridItemsHtml}
           </div>
       `;
+
+      // Setup filtering
+      const applyFilters = () => {
+          const queryLower = this.gridSearchQuery.toLowerCase();
+          document.querySelectorAll('.media-grid-item').forEach(el => {
+              const title = el.getAttribute('title')?.toLowerCase() || "";
+              const type = el.getAttribute('data-type') || "";
+              const typeMatch = this.gridTypeFilter === 'All' || type === this.gridTypeFilter;
+              
+              if (title.includes(queryLower) && typeMatch) {
+                  (el as HTMLElement).style.display = 'flex';
+              } else {
+                  (el as HTMLElement).style.display = 'none';
+              }
+          });
+      };
+
+      // Setup search filter listener
+      const searchInput = document.getElementById('grid-search-filter') as HTMLInputElement;
+      if (searchInput) {
+          searchInput.addEventListener('input', (e) => {
+              this.gridSearchQuery = (e.target as HTMLInputElement).value;
+              applyFilters();
+          });
+      }
+
+      const typeSelect = document.getElementById('grid-type-select') as HTMLSelectElement;
+      if (typeSelect) {
+          typeSelect.addEventListener('change', (e) => {
+              this.gridTypeFilter = (e.target as HTMLSelectElement).value;
+              applyFilters();
+          });
+      }
 
       // Setup click listeners for grid items
       document.querySelectorAll('.media-grid-item').forEach(el => {

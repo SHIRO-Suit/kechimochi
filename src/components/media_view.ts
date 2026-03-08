@@ -2,7 +2,7 @@ import { getAllMedia, getLogsForMedia, updateMedia, uploadCoverImage, readFileBy
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { customPrompt, showImportMergeModal, customAlert } from '../modals';
-import { fetchMetadataForUrl } from '../importers';
+import { fetchMetadataForUrl, isValidImporterUrl } from '../importers';
 
 export class MediaView {
   private container: HTMLElement;
@@ -238,13 +238,24 @@ export class MediaView {
           return 0;
       });
 
-      let extraDataHtml = sortedEntries.map(([k, v]) => `
+      let extraDataHtml = sortedEntries.map(([k, v]) => {
+          const isSourceUrl = k.toLowerCase().includes('source') && typeof v === 'string' && v.startsWith('http') && isValidImporterUrl(v, media.content_type || "Unknown");
+          let refreshBtn = '';
+          if (isSourceUrl) {
+              refreshBtn = `<div class="refresh-extra-btn" data-url="${v}" title="Refresh Metadata" style="position: absolute; bottom: 0.5rem; right: 0.5rem; cursor: pointer; color: var(--accent-purple); display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: var(--bg-dark);">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 21v-5h5"/></svg>
+              </div>`;
+          }
+
+          return `
           <div class="card" style="padding: 0.5rem 1rem; position: relative;" data-ekey="${k}">
               <div style="font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase;">${k}</div>
               <div class="editable-extra" data-key="${k}" title="Double click to edit" style="cursor: pointer; font-weight: 500;">${v || '-'}</div>
               <div class="delete-extra-btn" data-key="${k}" title="Delete field" style="position: absolute; top: 0.5rem; right: 0.5rem; cursor: pointer; color: var(--accent-red); font-size: 0.8rem; font-weight: bold; opacity: 0.6;">&times;</div>
+              ${refreshBtn}
           </div>
-      `).join('');
+          `;
+      }).join('');
 
       area.innerHTML = `
         <!-- Left Column: Cover -->
@@ -558,129 +569,21 @@ export class MediaView {
       document.getElementById('btn-import-meta')?.addEventListener('click', async () => {
           let url = await customPrompt(`Enter a valid URL for ${media.content_type} metadata:`);
           if (!url || url.trim() === "") return;
-          url = url.trim();
-          
-          let targetVolume: number | undefined = undefined;
-          let reportedVolume: number | undefined = undefined;
-          
-          let defaultVol = "1";
-          try {
-              const currentExtraMap = JSON.parse(media.extra_data || "{}");
-              if (currentExtraMap["Volume"]) {
-                 defaultVol = currentExtraMap["Volume"];
-              }
-          } catch (e) {}
-          
-          if (url.includes("cmoa.jp/title/")) {
-              const volStr = await customPrompt("Cmoa detected. Enter Volume Number (leave empty for Volume 1):", defaultVol);
-              if (volStr !== null) {
-                  let volNum = parseInt(volStr.trim(), 10);
-                  if (isNaN(volNum)) volNum = parseInt(defaultVol, 10) || 1;
-                  
-                  if (volNum >= 1) {
-                      reportedVolume = volNum;
-                      url = url.replace(/\/vol\/\d+\/?$/, '');
-                      if (!url.endsWith('/')) url += '/';
-                      
-                      if (volNum > 1) {
-                          url += `vol/${volNum}/`;
-                      }
-                  }
-              }
-          } else if (url.includes("bookwalker.jp/")) {
-              const volStr = await customPrompt("Bookwalker detected. Enter Volume Number (leave empty for Volume 1):", defaultVol);
-              if (volStr !== null) {
-                  let volNum = parseInt(volStr.trim(), 10);
-                  if (isNaN(volNum)) volNum = parseInt(defaultVol, 10) || 1;
-                  
-                  if (volNum >= 1) {
-                      targetVolume = volNum;
-                      reportedVolume = volNum;
-                  }
-              }
-          }
-          
-          try {
-              document.getElementById('btn-import-meta')!.innerText = "Fetching...";
-              const scraped = await fetchMetadataForUrl(url, media.content_type || "Unknown", targetVolume);
-              if (!scraped) throw new Error("Could not parse data.");
-              
-              if (reportedVolume !== undefined) {
-                  scraped.extraData["Volume"] = reportedVolume.toString();
-              }
-                           const currentExtra = JSON.parse(media.extra_data || "{}");
-              
-              // Ensure we have a preview for the current image
-              let currentCoverPreview = "";
-              if (media.cover_image) {
-                  currentCoverPreview = this.imageCache.get(media.cover_image) || "";
-                  if (!currentCoverPreview) {
-                      try {
-                          const bytes = await readFileBytes(media.cover_image);
-                          const blob = new Blob([new Uint8Array(bytes)]);
-                          currentCoverPreview = URL.createObjectURL(blob);
-                          this.imageCache.set(media.cover_image, currentCoverPreview);
-                      } catch (err) {
-                          console.warn("Could not load current cover for comparison", err);
-                      }
-                  }
-              }
+          await this.performMetadataImport(media, url.trim(), false);
+      });
 
-              // Check if images are identical by comparing hashes via backend proxy
-              let imagesIdentical = false;
-              if (media.cover_image && scraped.coverImageUrl) {
-                  try {
-                      const localBytes = await readFileBytes(media.cover_image);
-                      const remoteBytes = await invoke<number[]>('fetch_remote_bytes', { url: scraped.coverImageUrl });
-                      
-                      if (localBytes.length === remoteBytes.length) {
-                          imagesIdentical = true;
-                          for (let i = 0; i < localBytes.length; i++) {
-                              if (localBytes[i] !== remoteBytes[i]) {
-                                  imagesIdentical = false;
-                                  break;
-                              }
-                          }
-                      }
-                  } catch (err) {
-                      console.warn("Could not compare image contents", err);
-                  }
+      // Refresh Metadata from individual sources
+      document.querySelectorAll('.refresh-extra-btn').forEach(el => {
+          el.addEventListener('click', async (e) => {
+              const target = e.currentTarget as HTMLElement;
+              const url = target.dataset.url;
+              if (url) {
+                  const svg = target.querySelector('svg');
+                  if (svg) svg.style.animation = "spin 1s linear infinite"; // Optional: add CSS spin keyframes elsewhere or trust it's somewhat working
+                  await this.performMetadataImport(media, url, true);
+                  if (svg) svg.style.animation = "none";
               }
-
-              const currentData = {
-                  description: media.description,
-                  coverImageUrl: currentCoverPreview,
-                  extraData: currentExtra,
-                  imagesIdentical
-              };
-              const selected = await showImportMergeModal(scraped, currentData);
-              
-              if (selected) {
-                  if (selected.description !== undefined) media.description = selected.description;
-                  
-                  if (selected.coverImageUrl) {
-                      const newCoverPath = await invoke<string>('download_and_save_image', { 
-                          mediaId: media.id, 
-                          url: selected.coverImageUrl 
-                      });
-                      media.cover_image = newCoverPath;
-                  }
-                  
-                  for (const [k, v] of Object.entries(selected.extraData)) {
-                      currentExtra[k] = v;
-                  }
-                  media.extra_data = JSON.stringify(currentExtra);
-                  
-                  await updateMedia(media);
-                  await this.renderDetailContent(media);
-              }
-          } catch (e: any) {
-              await customAlert("Import Failed", (e.message || String(e)));
-          } finally {
-              const btn = document.getElementById('btn-import-meta');
-              if (btn) btn.innerText = "Fetch Metadata from URL";
-              await this.renderDetailContent(media);
-          }
+          });
       });
       
       // Clear Metadata
@@ -726,5 +629,147 @@ export class MediaView {
             if (media) await this.renderDetailContent(media);
         });
     }
+  }
+
+  private async performMetadataImport(media: Media, url: string, isRefresh: boolean = false) {
+      let targetVolume: number | undefined = undefined;
+      let reportedVolume: number | undefined = undefined;
+      
+      let defaultVol = "1";
+      try {
+          const currentExtraMap = JSON.parse(media.extra_data || "{}");
+          if (currentExtraMap["Volume"]) {
+             defaultVol = currentExtraMap["Volume"];
+          }
+      } catch (e) {}
+      
+      if (url.includes("cmoa.jp/title/")) {
+          // If refresh and we have a volume mapped, skip asking
+          let volStr: string | null = null;
+          if (isRefresh && defaultVol !== "1") {
+              volStr = defaultVol;
+          } else {
+              volStr = await customPrompt("Cmoa detected. Enter Volume Number (leave empty for Volume 1):", defaultVol);
+          }
+          
+          if (volStr !== null) {
+              let volNum = parseInt(volStr.trim(), 10);
+              if (isNaN(volNum)) volNum = parseInt(defaultVol, 10) || 1;
+              
+              if (volNum >= 1) {
+                  reportedVolume = volNum;
+                  url = url.replace(/\/vol\/\d+\/?$/, '');
+                  if (!url.endsWith('/')) url += '/';
+                  
+                  if (volNum > 1) {
+                      url += `vol/${volNum}/`;
+                  }
+              }
+          } else {
+              return; // Cancelled
+          }
+      } else if (url.includes("bookwalker.jp/")) {
+          let volStr: string | null = null;
+          if (isRefresh && defaultVol !== "1") {
+              volStr = defaultVol;
+          } else {
+              volStr = await customPrompt("Bookwalker detected. Enter Volume Number (leave empty for Volume 1):", defaultVol);
+          }
+
+          if (volStr !== null) {
+              let volNum = parseInt(volStr.trim(), 10);
+              if (isNaN(volNum)) volNum = parseInt(defaultVol, 10) || 1;
+              
+              if (volNum >= 1) {
+                  targetVolume = volNum;
+                  reportedVolume = volNum;
+              }
+          } else {
+              return; // Cancelled
+          }
+      }
+      
+      try {
+          const btn = document.getElementById('btn-import-meta');
+          if (btn) btn.innerText = "Fetching...";
+          
+          const scraped = await fetchMetadataForUrl(url, media.content_type || "Unknown", targetVolume);
+          if (!scraped) throw new Error("Could not parse data.");
+          
+          if (reportedVolume !== undefined) {
+              scraped.extraData["Volume"] = reportedVolume.toString();
+          }
+          const currentExtra = JSON.parse(media.extra_data || "{}");
+          
+          // Ensure we have a preview for the current image
+          let currentCoverPreview = "";
+          if (media.cover_image) {
+              currentCoverPreview = this.imageCache.get(media.cover_image) || "";
+              if (!currentCoverPreview) {
+                  try {
+                      const bytes = await readFileBytes(media.cover_image);
+                      const blob = new Blob([new Uint8Array(bytes)]);
+                      currentCoverPreview = URL.createObjectURL(blob);
+                      this.imageCache.set(media.cover_image, currentCoverPreview);
+                  } catch (err) {
+                      console.warn("Could not load current cover for comparison", err);
+                  }
+              }
+          }
+
+          // Check if images are identical by comparing hashes via backend proxy
+          let imagesIdentical = false;
+          if (media.cover_image && scraped.coverImageUrl) {
+              try {
+                  const localBytes = await readFileBytes(media.cover_image);
+                  const remoteBytes = await invoke<number[]>('fetch_remote_bytes', { url: scraped.coverImageUrl });
+                  
+                  if (localBytes.length === remoteBytes.length) {
+                      imagesIdentical = true;
+                      for (let i = 0; i < localBytes.length; i++) {
+                          if (localBytes[i] !== remoteBytes[i]) {
+                              imagesIdentical = false;
+                              break;
+                          }
+                      }
+                  }
+              } catch (err) {
+                  console.warn("Could not compare image contents", err);
+              }
+          }
+
+          const currentData = {
+              description: media.description,
+              coverImageUrl: currentCoverPreview,
+              extraData: currentExtra,
+              imagesIdentical
+          };
+          const selected = await showImportMergeModal(scraped, currentData);
+          
+          if (selected) {
+              if (selected.description !== undefined) media.description = selected.description;
+              
+              if (selected.coverImageUrl) {
+                  const newCoverPath = await invoke<string>('download_and_save_image', { 
+                      mediaId: media.id, 
+                      url: selected.coverImageUrl 
+                  });
+                  media.cover_image = newCoverPath;
+              }
+              
+              for (const [k, v] of Object.entries(selected.extraData)) {
+                  currentExtra[k] = v;
+              }
+              media.extra_data = JSON.stringify(currentExtra);
+              
+              await updateMedia(media);
+          }
+      } catch (e: any) {
+          await customAlert("Import Failed", (e.message || String(e)));
+      } finally {
+          const btn = document.getElementById('btn-import-meta');
+          if (btn) btn.innerText = "Fetch Metadata from URL";
+          await this.renderDetailContent(media);
+      }
   }
 }

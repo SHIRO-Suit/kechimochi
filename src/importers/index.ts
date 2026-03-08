@@ -33,3 +33,7 @@ export async function fetchMetadataForUrl(url: string, contentType: string, targ
     }
     return await importer.fetch(url, targetVolume);
 }
+
+export function isValidImporterUrl(url: string, contentType: string): boolean {
+    return importers.some(i => i.matchUrl(url, contentType));
+}

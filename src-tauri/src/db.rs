@@ -65,7 +65,22 @@ pub fn wipe_profile(app_handle: &tauri::AppHandle, profile_name: &str) -> std::r
     let db_path = app_dir.join(file_name);
     
     if db_path.exists() {
-        fs::remove_file(db_path).map_err(|e| e.to_string())?;
+        if let Ok(conn) = Connection::open(&db_path) {
+            if let Ok(mut stmt) = conn.prepare("SELECT cover_image FROM media WHERE cover_image IS NOT NULL AND cover_image != ''") {
+                if let Ok(paths) = stmt.query_map([], |row| row.get::<_, String>(0)) {
+                    for path_res in paths {
+                        if let Ok(path_str) = path_res {
+                            let path = std::path::Path::new(&path_str);
+                            if path.exists() {
+                                let _ = fs::remove_file(path);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        fs::remove_file(&db_path).map_err(|e| e.to_string())?;
     }
     
     Ok(())
@@ -143,6 +158,18 @@ pub fn update_media(conn: &Connection, media: &Media) -> Result<()> {
 }
 
 pub fn delete_media(conn: &Connection, id: i64) -> Result<()> {
+    // Delete cover image from file system
+    if let Ok(cover_image) = conn.query_row(
+        "SELECT cover_image FROM media WHERE id = ?1 AND cover_image IS NOT NULL AND cover_image != ''",
+        params![id],
+        |row| row.get::<_, String>(0),
+    ) {
+        let path = std::path::Path::new(&cover_image);
+        if path.exists() {
+            let _ = fs::remove_file(path);
+        }
+    }
+
     // Also delete associated logs
     conn.execute("DELETE FROM activity_logs WHERE media_id = ?1", params![id])?;
     conn.execute("DELETE FROM media WHERE id = ?1", params![id])?;

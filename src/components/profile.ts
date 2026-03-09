@@ -1,4 +1,4 @@
-import { importCsv, exportCsv, deleteProfile, clearActivities, wipeEverything, exportMediaCsv, analyzeMediaCsv, applyMediaImport, switchProfile, listProfiles, getSetting, setSetting } from '../api';
+import { getAllMedia, getLogsForMedia, importCsv, exportCsv, deleteProfile, clearActivities, wipeEverything, exportMediaCsv, analyzeMediaCsv, applyMediaImport, switchProfile, listProfiles, getSetting, setSetting } from '../api';
 import { customPrompt, showExportCsvModal, customAlert, customConfirm, showMediaCsvConflictModal, initialProfilePrompt } from '../modals';
 import { open, save } from '@tauri-apps/plugin-dialog';
 
@@ -18,6 +18,19 @@ export class ProfileView {
         <div style="text-align: center; margin-bottom: 2rem;">
           <h2 style="margin: 0; font-size: 2rem; color: var(--text-primary);">${currentProfile}</h2>
           <p style="color: var(--text-secondary); margin-top: 0.5rem;">Manage your profile and data</p>
+        </div>
+
+        <div class="card" style="display: flex; flex-direction: column; gap: 1rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0;">Reading Report Card</h3>
+            <button class="btn btn-primary" id="profile-btn-calculate-report" style="font-size: 0.8rem; padding: 0.3rem 0.6rem;">Calculate Report</button>
+          </div>
+          <p style="color: var(--text-secondary); font-size: 0.9rem;">Aggregated reading speed for the last 12 months based on completed entries.</p>
+          
+          <div id="profile-report-card-content" style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 0.5rem; font-size: 0.95rem;">
+            <div style="color: var(--text-secondary); text-align: center; padding: 1rem;">No report calculated yet.</div>
+          </div>
+          <div id="profile-report-timestamp" style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 0.5rem; text-align: right; display: none;"></div>
         </div>
 
         <div class="card" style="display: flex; flex-direction: column; gap: 1rem;">
@@ -98,6 +111,44 @@ export class ProfileView {
 
     this.setupListeners(currentProfile);
     this.loadCurrentTheme();
+    this.loadReportCard();
+  }
+
+  private async loadReportCard() {
+    const novelSpeed = await getSetting('stats_novel_speed');
+    const novelCount = await getSetting('stats_novel_count');
+    const mangaSpeed = await getSetting('stats_manga_speed');
+    const mangaCount = await getSetting('stats_manga_count');
+    const vnSpeed = await getSetting('stats_vn_speed');
+    const vnCount = await getSetting('stats_vn_count');
+    const timestamp = await getSetting('stats_report_timestamp');
+
+    if (!timestamp) return;
+
+    const content = document.getElementById('profile-report-card-content');
+    const tsDiv = document.getElementById('profile-report-timestamp');
+    if (!content || !tsDiv) return;
+
+    tsDiv.style.display = 'block';
+    
+    // Convert timestamp (which is the cutoff date) to a readable since date
+    const sinceDate = new Date(timestamp);
+    tsDiv.innerText = `Since ${sinceDate.toISOString().split('T')[0]}`;
+
+    content.innerHTML = `
+      <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.5rem;">
+        <span>Average Novel Reading Speed: <strong>${novelSpeed ? parseInt(novelSpeed).toLocaleString() : '0'} char/hr</strong></span>
+        <span style="color: var(--text-secondary); font-size: 0.85rem;">(out of ${novelCount || '0'} books)</span>
+      </div>
+      <div style="display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.5rem;">
+        <span>Average Manga Reading Speed: <strong>${mangaSpeed ? parseInt(mangaSpeed).toLocaleString() : '0'} char/hr</strong></span>
+        <span style="color: var(--text-secondary); font-size: 0.85rem;">(out of ${mangaCount || '0'} manga)</span>
+      </div>
+      <div style="display: flex; justify-content: space-between;">
+        <span>Average Visual Novel Reading Speed: <strong>${vnSpeed ? parseInt(vnSpeed).toLocaleString() : '0'} char/hr</strong></span>
+        <span style="color: var(--text-secondary); font-size: 0.85rem;">(out of ${vnCount || '0'} VNs)</span>
+      </div>
+    `;
   }
 
   private async loadCurrentTheme() {
@@ -259,6 +310,86 @@ export class ProfileView {
       } else if (confirm1) {
           await customAlert("Aborted", "Factory reset cancelled.");
       }
+    });
+
+    // Calculate Report Card
+    document.getElementById('profile-btn-calculate-report')?.addEventListener('click', async () => {
+        const btn = document.getElementById('profile-btn-calculate-report') as HTMLButtonElement;
+        const originalText = btn.innerText;
+        btn.disabled = true;
+        btn.innerText = "Calculating...";
+
+        try {
+            const now = new Date();
+            const cutoffDate = new Date();
+            cutoffDate.setFullYear(now.getFullYear() - 1);
+            const cutoffStr = cutoffDate.toISOString().split('T')[0];
+
+            const mediaList = await getAllMedia();
+            const stats: Record<string, { totalSpeed: number, count: number }> = {
+                "Novel": { totalSpeed: 0, count: 0 },
+                "Manga": { totalSpeed: 0, count: 0 },
+                "Visual Novel": { totalSpeed: 0, count: 0 }
+            };
+
+            for (const media of mediaList) {
+                if (media.tracking_status !== 'Complete') continue;
+                if (!stats[media.content_type || ""]) continue;
+
+                let extraData: Record<string, string> = {};
+                try {
+                    extraData = JSON.parse(media.extra_data || "{}");
+                } catch (e) { continue; }
+
+                const charRaw = extraData["Character count"];
+                if (!charRaw) continue;
+
+                const charCount = parseInt(charRaw.replace(/,/g, ''));
+                if (isNaN(charCount)) continue;
+
+                const logs = await getLogsForMedia(media.id!);
+                if (logs.length === 0) continue;
+
+                // Logs are sorted descending by date
+                if (logs[0].date < cutoffStr) continue;
+
+                let totalMinutes = 0;
+                for (const log of logs) {
+                    totalMinutes += log.duration_minutes;
+                }
+
+                if (totalMinutes > 0) {
+                    const speed = charCount / (totalMinutes / 60);
+                    stats[media.content_type!].totalSpeed += speed;
+                    stats[media.content_type!].count += 1;
+                }
+            }
+
+            // Save settings
+            await setSetting('stats_report_timestamp', cutoffDate.toISOString());
+            
+            const types = [
+                { key: 'Novel', speedKey: 'stats_novel_speed', countKey: 'stats_novel_count' },
+                { key: 'Manga', speedKey: 'stats_manga_speed', countKey: 'stats_manga_count' },
+                { key: 'Visual Novel', speedKey: 'stats_vn_speed', countKey: 'stats_vn_count' }
+            ];
+
+            for (const t of types) {
+                const s = stats[t.key];
+                const avgSpeed = s.count > 0 ? Math.round(s.totalSpeed / s.count) : 0;
+                await setSetting(t.speedKey, avgSpeed.toString());
+                await setSetting(t.countKey, s.count.toString());
+            }
+
+            await this.loadReportCard();
+            await customAlert("Success", "Reading report card calculated successfully!");
+        } catch (e) {
+            console.error("Failed to calculate report card", e);
+            await customAlert("Error", "Failed to calculate report card.");
+        } finally {
+            btn.disabled = false;
+            btn.innerText = originalText;
+        }
     });
   }
 }

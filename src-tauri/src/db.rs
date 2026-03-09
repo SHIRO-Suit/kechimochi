@@ -1,8 +1,23 @@
 use rusqlite::{params, Connection, Result};
 use std::fs;
+use std::path::PathBuf;
 use tauri::Manager;
 
 use crate::models::{ActivityLog, ActivitySummary, Media, DailyHeatmap};
+
+/// Returns the data directory for the application.
+/// If KECHIMOCHI_DATA_DIR is set, uses that path (for test isolation).
+/// Otherwise falls back to the platform app data directory.
+pub fn get_data_dir(app_handle: &tauri::AppHandle) -> PathBuf {
+    if let Ok(dir) = std::env::var("KECHIMOCHI_DATA_DIR") {
+        PathBuf::from(dir)
+    } else {
+        app_handle
+            .path()
+            .app_data_dir()
+            .expect("Failed to get app data dir")
+    }
+}
 
 fn migrate_to_shared(conn: &Connection) -> Result<()> {
     // Check if `main.media` exists
@@ -102,10 +117,7 @@ pub fn create_tables(conn: &Connection) -> Result<()> {
 }
 
 pub fn init_db(app_handle: &tauri::AppHandle, profile_name: &str) -> Result<Connection> {
-    let app_dir = app_handle
-        .path()
-        .app_data_dir()
-        .expect("Failed to get app data dir");
+    let app_dir = get_data_dir(app_handle);
     fs::create_dir_all(&app_dir).expect("Failed to create app data dir");
     
     let shared_db_path = app_dir.join("kechimochi_shared_media.db");
@@ -130,10 +142,7 @@ pub fn init_db(app_handle: &tauri::AppHandle, profile_name: &str) -> Result<Conn
 }
 
 pub fn wipe_profile(app_handle: &tauri::AppHandle, profile_name: &str) -> std::result::Result<(), String> {
-    let app_dir = app_handle
-        .path()
-        .app_data_dir()
-        .map_err(|e| e.to_string())?;
+    let app_dir = get_data_dir(app_handle);
     
     let file_name = format!("kechimochi_{}.db", profile_name);
     let db_path = app_dir.join(file_name);
@@ -148,10 +157,7 @@ pub fn wipe_profile(app_handle: &tauri::AppHandle, profile_name: &str) -> std::r
 }
 
 pub fn list_profiles(app_handle: &tauri::AppHandle) -> std::result::Result<Vec<String>, String> {
-    let app_dir = app_handle
-        .path()
-        .app_data_dir()
-        .map_err(|e| e.to_string())?;
+    let app_dir = get_data_dir(app_handle);
 
     let mut profiles = Vec::new();
     if let Ok(entries) = fs::read_dir(app_dir) {

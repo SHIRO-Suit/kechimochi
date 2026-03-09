@@ -69,10 +69,7 @@ fn get_logs_for_media(state: State<DbState>, media_id: i64) -> Result<Vec<Activi
 
 #[tauri::command]
 fn upload_cover_image(app_handle: tauri::AppHandle, state: State<DbState>, media_id: i64, path: String) -> Result<String, String> {
-    let app_dir = app_handle
-        .path()
-        .app_data_dir()
-        .map_err(|e| e.to_string())?;
+    let app_dir = db::get_data_dir(&app_handle);
         
     let img_dir = app_dir.join("covers");
     std::fs::create_dir_all(&img_dir).map_err(|e| e.to_string())?;
@@ -173,10 +170,7 @@ async fn download_and_save_image(app_handle: tauri::AppHandle, state: State<'_, 
     let res = res.error_for_status().map_err(|e| e.to_string())?;
     let bytes = res.bytes().await.map_err(|e| e.to_string())?;
     
-    let app_dir = app_handle
-        .path()
-        .app_data_dir()
-        .map_err(|e| e.to_string())?;
+    let app_dir = db::get_data_dir(&app_handle);
         
     let img_dir = app_dir.join("covers");
     std::fs::create_dir_all(&img_dir).map_err(|e| e.to_string())?;
@@ -291,7 +285,7 @@ fn wipe_everything(app_handle: tauri::AppHandle, state: State<DbState>) -> Resul
         *conn_guard = rusqlite::Connection::open_in_memory().unwrap();
     }
     
-    let app_dir = app_handle.path().app_data_dir().map_err(|e| e.to_string())?;
+    let app_dir = db::get_data_dir(&app_handle);
     
     // Delete covers dir
     let covers_dir = app_dir.join("covers");

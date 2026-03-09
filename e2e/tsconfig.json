@@ -1,0 +1,13 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "types": [
+      "@wdio/globals/types",
+      "@wdio/mocha-framework",
+      "expect-webdriverio",
+      "@wdio/visual-service",
+      "@wdio/ocr-service"
+    ]
+  },
+  "include": ["**/*.ts"]
+}

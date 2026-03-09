@@ -52,26 +52,42 @@ export function cleanupTestDir(testDir: string): void {
 
 /**
  * Waits for the app to be ready by polling for a known DOM element.
+ * Also ensures the system date is mocked to 2024-03-31 for consistent stats/charts.
  */
 export async function waitForAppReady(timeout = 15000): Promise<void> {
-  console.log(`[e2e] Waiting for app to be ready (timeout: ${timeout}ms)...`);
+  const MOCK_DATE = '2024-03-31';
+  console.log(`[e2e] Ensuring app is ready and date is mocked to ${MOCK_DATE}...`);
+
+  // 1. Check if we need to set the mock date
+  await (browser as any).waitUntil(async () => {
+    try {
+      const currentMock = await (browser as any).execute(() => localStorage.getItem('kechimochi_mock_date'));
+      if (currentMock !== MOCK_DATE) {
+        console.log(`[e2e] Setting kechimochi_mock_date to ${MOCK_DATE} and refreshing...`);
+        await (browser as any).execute((date: string) => {
+          localStorage.setItem('kechimochi_mock_date', date);
+        }, MOCK_DATE);
+        await (browser as any).refresh();
+        return false; // Loop once more after refresh
+      }
+      return true;
+    } catch {
+       return false;
+    }
+  }, { timeout: 5000, timeoutMsg: 'Failed to set mock date' }).catch(() => {});
+
+  // 2. Poll for app readiness
   let retries = 0;
   await (browser as any).waitUntil(
     async () => {
       retries++;
-      const url = await (browser as any).getUrl().catch(() => 'unknown');
-      const title = await (browser as any).getTitle().catch(() => 'unknown');
       const el = await $('[data-view="dashboard"]');
-      const exists = await el.isExisting();
-      const displayed = exists ? await el.isDisplayed() : false;
+      const displayed = await el.isDisplayed().catch(() => false);
       
-      if (retries % 3 === 0) {
-        console.log(`[e2e] App ready check #${retries}: url=${url}, title="${title}", exists=${exists}, displayed=${displayed}`);
+      if (retries % 5 === 0) {
+        console.log(`[e2e] App ready check #${retries}...`);
       }
       
-      if (displayed) {
-         console.log('[e2e] App is ready (dashboard view visible)');
-      }
       return displayed;
     },
     {
@@ -80,4 +96,5 @@ export async function waitForAppReady(timeout = 15000): Promise<void> {
       interval: 1000,
     }
   );
+  console.log('[e2e] App is ready (dashboard view visible)');
 }

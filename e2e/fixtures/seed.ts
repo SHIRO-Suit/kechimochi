@@ -123,7 +123,7 @@ const MEDIA_ENTRIES = [
 
 function generateActivityLogs(mediaIds: Map<string, number>) {
   const logs: { media_id: number; duration_minutes: number; date: string }[] = [];
-  const year = new Date().getFullYear();
+  const year = 2024;
   const entries: [string, number, string][] = [
     // [title, minutes, date]
     ['ある魔女が死ぬまで', 45, `${year}-01-05`],

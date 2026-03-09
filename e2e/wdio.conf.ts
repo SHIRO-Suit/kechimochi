@@ -10,9 +10,12 @@ import { prepareTestDir, cleanupTestDir } from './helpers/setup.js';
 
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
-// Unique ID for this test run. Set in onPrepare and inherited by workers.
 const STABLE_RUN_ID = process.env.TEST_RUN_ID || new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
 const LOGS_DIR = path.join(__dirname, 'logs', `test_run_${STABLE_RUN_ID}`);
+
+if (process.env.TEST_RUN_ID) {
+    console.log(`[e2e] Worker process using inherited TEST_RUN_ID: ${STABLE_RUN_ID}`);
+}
 
 let tauriDriver: ChildProcess;
 let tauriDriverExit = false;
@@ -170,7 +173,8 @@ export const config: WebdriverIO.Config = {
       }
     };
 
-    console.log(`\n[e2e] [${specName}] Staging artifacts at: ${STAGE_DIR}`);
+    console.log(`\n[e2e] [${specName}] Staging area: ${STAGE_DIR}`);
+    console.log(`[e2e] [${specName}] Final destination: ${path.join(LOGS_DIR, specName)}`);
 
     // 2. Spawn driver
     tauriDriver = spawn(

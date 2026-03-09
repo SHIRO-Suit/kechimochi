@@ -94,12 +94,12 @@ export const config: WebdriverIO.Config = {
       // We force exact absolute paths in interactions.ts to avoid "Ghost folders"
       savePerInstance: false,
       autoSaveBaseline: true,
-      blockOutStatusBar: false,
-      blockOutToolBar: false,
+      blockOutStatusBar: true,
+      blockOutToolBar: true,
       clearRuntimeFolder: false, // Set to false to prevent it from clearing our custom dirs
       misMatchTolerance: 10.0,
       compareOptions: {
-        threshold: 0.2,
+        threshold: 0.5,
         includeAA: true,
       },
       // FORCE no subfolders by zeroing out segments

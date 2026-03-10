@@ -42,7 +42,8 @@ describe('Media Grid CUJ', () => {
       const items = await $$('.media-grid-item');
       let visibleCount = 0;
       // Use a standard loop to avoid iterability issues with WDIO element arrays
-      for (let i = 0; i < items.length; i++) {
+      const itemsCount = await items.length;
+      for (let i = 0; i < itemsCount; i++) {
         if (await items[i].isDisplayed()) {
           visibleCount++;
         }

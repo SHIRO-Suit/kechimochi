@@ -141,6 +141,8 @@ class App {
         document.getElementById('btn-add-activity')?.addEventListener('click', async () => {
             const success = await showLogActivityModal();
             if (success) {
+                if (this.currentView === 'dashboard') await this.dashboard.loadData();
+                else if (this.currentView === 'media') await this.mediaView.loadData();
                 this.renderCurrentView();
             }
         });
@@ -187,13 +189,18 @@ class App {
         document.body.dataset.theme = theme;
     }
 
-    private switchView(view: 'dashboard' | 'media' | 'profile') {
+    private async switchView(view: 'dashboard' | 'media' | 'profile') {
         this.currentView = view;
         
         this.navLinks.forEach(n => {
             const dataView = n.getAttribute('data-view');
             n.classList.toggle('active', dataView === view);
         });
+
+        // Always reload data when switching views to ensure freshness
+        if (view === 'dashboard') await this.dashboard.loadData();
+        else if (view === 'media') await this.mediaView.loadData();
+        else if (view === 'profile') await this.profileView.loadData();
 
         this.renderCurrentView();
     }

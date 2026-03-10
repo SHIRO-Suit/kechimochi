@@ -9,7 +9,7 @@ import {
     customPrompt, showExportCsvModal, customAlert, customConfirm,
     showMediaCsvConflictModal, initialProfilePrompt
 } from '../modals';
-import { open, save } from '@tauri-apps/plugin-dialog';
+import { open, save } from '../utils/dialogs';
 
 interface ProfileState {
     currentProfile: string;

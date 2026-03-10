@@ -196,8 +196,7 @@ export class MediaGrid extends Component<MediaGridState> {
                 itemWrapper.style.opacity = '0';
                 itemWrapper.style.animation = `fadeIn 0.25s ease-out ${isFirst ? (i * 0.02) : 0}s forwards`;
                 
-                // PERFORMANCE: Help browser skip rendering off-screen items
-                itemWrapper.style.contentVisibility = 'auto';
+                // Removed contentVisibility check for more reliable E2E tests
                 itemWrapper.style.containIntrinsicSize = '180px 320px';
                 
                 const item = new MediaItem(itemWrapper, media, () => this.onMediaClick(media.id!));

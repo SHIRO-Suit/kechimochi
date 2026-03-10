@@ -98,3 +98,16 @@ export async function takeAndCompareScreenshot(tag: string): Promise<void> {
   // High tolerance for environmental rendering noise
   expect(result).toBeLessThanOrEqual(10.0);
 }
+
+/**
+ * Dismisses a custom alert modal if it exists
+ */
+export async function dismissAlert(): Promise<void> {
+  const okBtn = await $('#alert-ok');
+  if (await okBtn.isExisting()) {
+    await okBtn.waitForDisplayed({ timeout: 5000 });
+    await okBtn.click();
+    // Wait for fadeout animation
+    await browser.pause(500);
+  }
+}

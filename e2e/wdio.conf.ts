@@ -38,11 +38,6 @@ export const config: WebdriverIO.Config = {
   runner: 'local',
   hostname: '127.0.0.1',
   port: 4444,
-  autoCompileOpts: {
-    tsNodeOpts: {
-      project: path.resolve(__dirname, '..', 'tsconfig.json'),
-    },
-  },
 
   // ==================
   // Specs
@@ -56,13 +51,12 @@ export const config: WebdriverIO.Config = {
   // ==================
   maxInstances: parseInt(process.env.E2E_MAX_INSTANCES || '2'),
   capabilities: [{
-    maxInstances: 1,
     'tauri:options': {
       application: path.resolve(
         __dirname, '..', 'src-tauri', 'target', 'debug', 'kechimochi'
       ),
     },
-  }],
+  } as any],
 
   // ==================
   // Test Configuration

@@ -3,7 +3,7 @@ import { html, escapeHTML } from '../../core/html';
 import { Media, ActivitySummary, updateMedia, uploadCoverImage, downloadAndSaveImage, readFileBytes, deleteMedia, getSetting } from '../../api';
 import { customConfirm, customPrompt, showJitenSearchModal, showImportMergeModal } from '../../modals';
 import { isValidImporterUrl, getAvailableSourcesForContentType, fetchMetadataForUrl } from '../../importers';
-import { open } from '@tauri-apps/plugin-dialog';
+import { open } from '../../utils/dialogs';
 import { MediaLog } from './MediaLog';
 
 interface MediaDetailState {

@@ -16,7 +16,8 @@ interface DashboardState {
         timeRangeOffset: number;
         groupByMode: 'media_type' | 'log_name';
         chartType: 'bar' | 'line';
-    }
+    };
+    isInitialized: boolean;
 }
 
 export class Dashboard extends Component<DashboardState> {
@@ -34,7 +35,8 @@ export class Dashboard extends Component<DashboardState> {
                 timeRangeOffset: 0,
                 groupByMode: 'media_type',
                 chartType: 'bar'
-            }
+            },
+            isInitialized: false
         });
     }
 
@@ -47,7 +49,7 @@ export class Dashboard extends Component<DashboardState> {
                 getHeatmap(),
                 getAllMedia()
             ]);
-            this.setState({ logs, heatmapData, mediaList });
+            this.setState({ logs, heatmapData, mediaList, isInitialized: true });
         } catch (e) {
             console.error("Dashboard failed to load data", e);
         } finally {
@@ -56,7 +58,7 @@ export class Dashboard extends Component<DashboardState> {
     }
 
     async render() {
-        if (!this.isRefreshing) {
+        if (!this.state.isInitialized && !this.isRefreshing) {
             await this.loadData();
             return;
         }

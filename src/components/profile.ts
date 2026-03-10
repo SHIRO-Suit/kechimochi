@@ -22,7 +22,8 @@ interface ProfileState {
         vnSpeed: string;
         vnCount: string;
         timestamp: string;
-    }
+    };
+    isInitialized: boolean;
 }
 
 export class ProfileView extends Component<ProfileState> {
@@ -40,7 +41,8 @@ export class ProfileView extends Component<ProfileState> {
                 vnSpeed: '0',
                 vnCount: '0',
                 timestamp: ''
-            }
+            },
+            isInitialized: false
         });
     }
 
@@ -66,13 +68,15 @@ export class ProfileView extends Component<ProfileState> {
                 vnSpeed,
                 vnCount,
                 timestamp
-            }
+            },
+            isInitialized: true
         });
     }
 
     async render() {
         const localStorageProfile = localStorage.getItem('kechimochi_profile') || 'default';
-        if (!this.isRefreshing && (this.state.report.timestamp === '' || this.state.currentProfile !== localStorageProfile)) {
+        const needsLoad = !this.state.isInitialized || this.state.currentProfile !== localStorageProfile;
+        if (!this.isRefreshing && needsLoad) {
             this.isRefreshing = true;
             try {
                 await this.loadData();

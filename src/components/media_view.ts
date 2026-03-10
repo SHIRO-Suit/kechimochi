@@ -15,6 +15,7 @@ interface MediaViewState {
         hideArchived: boolean;
     },
     isLoading: boolean;
+    isInitialized: boolean;
 }
 
 export class MediaView extends Component<MediaViewState> {
@@ -32,7 +33,8 @@ export class MediaView extends Component<MediaViewState> {
                 statusFilter: 'All',
                 hideArchived: false
             },
-            isLoading: false
+            isLoading: false,
+            isInitialized: false
         });
         this.setupGlobalNavigation();
     }
@@ -103,6 +105,7 @@ export class MediaView extends Component<MediaViewState> {
                 currentMediaList: mediaList, 
                 currentIndex: nextIndex, 
                 isLoading: false,
+                isInitialized: true,
                 viewMode: jumpToId !== undefined ? 'detail' : this.state.viewMode
             });
         } catch (e) {
@@ -112,7 +115,7 @@ export class MediaView extends Component<MediaViewState> {
     }
 
     async render() {
-        if (this.state.currentMediaList.length === 0 && !this.state.isLoading && !this.targetMediaId) {
+        if (!this.state.isInitialized && !this.state.isLoading && !this.targetMediaId) {
             await this.loadData();
             return; // loadData will re-trigger render
         }

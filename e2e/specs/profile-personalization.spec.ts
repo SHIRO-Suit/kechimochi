@@ -13,11 +13,9 @@ describe('CUJ: User Personalization', () => {
     const themeSelect = await $('#profile-select-theme');
     await themeSelect.selectByAttribute('value', 'molokai');
 
-    // Verify attribute change
     const body = await $('body');
     expect(await body.getAttribute('data-theme')).toBe('molokai');
 
-    // Visual verification: check actual colors match visually
     await takeAndCompareScreenshot('profile-molokai-theme');
   });
 });

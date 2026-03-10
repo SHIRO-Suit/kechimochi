@@ -241,7 +241,7 @@ export const config: WebdriverIO.Config = {
       if (stageDir) {
         const logFile = path.join(stageDir, 'tauri-driver.log');
         const finalCode = (tauriDriver as any)._finalExitCode;
-        try { appendFileSync(logFile, `\n[e2e] Session Finished with exit code: ${finalCode}\n`); } catch { }
+        try { appendFileSync(logFile, `\n[e2e] Session Complete with exit code: ${finalCode}\n`); } catch { }
       }
     }
 

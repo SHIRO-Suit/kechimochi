@@ -84,7 +84,7 @@ pub fn import_csv(conn: &mut Connection, file_path: &str) -> Result<usize, Strin
                     id: None,
                     title: record.log_name.clone(),
                     media_type: record.media_type.clone(),
-                    status: "Completed".into(), // Default to Completed for historical data
+                    status: "Complete".into(), // Default to Complete for historical data
                     language: record.language.clone(),
                     description: "".to_string(),
                     cover_image: "".to_string(),
@@ -456,7 +456,7 @@ mod tests {
             id: None,
             title: "Existing".to_string(),
             media_type: "Reading".to_string(),
-            status: "Completed".to_string(),
+            status: "Complete".to_string(),
             language: "Japanese".to_string(),
             description: "".to_string(),
             cover_image: "".to_string(),

@@ -1,13 +1,3 @@
-/**
- * CUJ: Dashboard loads with correct data
- * 
- * Verifies that:
- *   - The dashboard view renders on app launch
- *   - Heatmap element is present
- *   - Stats cards show data from the fixtures
- *   - Screenshot matches baseline
- */
-
 import { waitForAppReady } from '../helpers/setup.js';
 import {
   verifyViewNotBroken,
@@ -31,7 +21,6 @@ describe('Dashboard CUJ', () => {
   });
 
   it('should display stats cards with fixture data', async () => {
-    // There should be several card elements in the dashboard
     const statsCards = await $$('.card');
     expect(statsCards.length).toBeGreaterThan(0);
   });

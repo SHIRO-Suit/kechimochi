@@ -61,7 +61,7 @@ export class MediaGrid extends Component<MediaGridState> {
     private renderHeader(container: HTMLElement) {
         container.innerHTML = '';
         const uniqueTypes = Array.from(new Set(this.state.mediaList.map(m => m.content_type || 'Unknown'))).sort();
-        
+
         const header = html`
             <div style="padding: 0 1rem; display: flex; gap: 1rem; justify-content: space-between; align-items: center;">
                 <div style="display: flex; align-items: center; gap: 1rem;">
@@ -99,17 +99,17 @@ export class MediaGrid extends Component<MediaGridState> {
         header.querySelector('#btn-add-media-grid')?.addEventListener('click', async () => {
             const result = await showAddMediaModal();
             if (!result) return;
-            
-            const newId = await addMedia({ 
-                title: result.title, 
-                media_type: result.type, 
-                status: "Active", 
-                language: "Japanese", 
-                description: "", 
-                cover_image: "", 
-                extra_data: "{}", 
-                content_type: result.contentType, 
-                tracking_status: "Untracked" 
+
+            const newId = await addMedia({
+                title: result.title,
+                media_type: result.type,
+                status: "Active",
+                language: "Japanese",
+                description: "",
+                cover_image: "",
+                extra_data: "{}",
+                content_type: result.contentType,
+                tracking_status: "Untracked"
             });
             await this.onDataChange(newId);
         });
@@ -118,9 +118,9 @@ export class MediaGrid extends Component<MediaGridState> {
             const btn = e.currentTarget as HTMLElement;
             const icon = btn.querySelector('#refresh-icon') as HTMLElement;
             if (icon) icon.style.animation = 'spin 0.8s linear infinite';
-            
+
             await this.onDataChange();
-            
+
             // Note: MediaGrid might be re-initialized if MediaView recreates it, 
             // but the animation helps feedback until the update.
             if (icon) icon.style.animation = '';
@@ -164,12 +164,12 @@ export class MediaGrid extends Component<MediaGridState> {
 
         container.innerHTML = '';
         const { mediaList, searchQuery, typeFilter, statusFilter, hideArchived } = this.state;
-        
+
         const filteredList = mediaList.filter(media => {
             const matchesQuery = media.title.toLowerCase().includes(searchQuery.toLowerCase());
             const typeMatch = typeFilter === 'All' || (media.content_type || 'Unknown') === typeFilter;
             const statusMatch = statusFilter === 'All' || media.tracking_status === statusFilter;
-            const isArchived = ['Archived', 'Inactive', 'Finished', 'Completed'].includes(media.status);
+            const isArchived = ['Archived', 'Inactive'].includes(media.status);
             const showStatus = !hideArchived || !isArchived;
             return matchesQuery && typeMatch && statusMatch && showStatus;
         });
@@ -187,7 +187,7 @@ export class MediaGrid extends Component<MediaGridState> {
             if (this.isDestroyed || renderId !== this.currentRenderId) return;
             const currentLimit = isFirst ? initialBatch : batchSize;
             const end = Math.min(currentIndex + currentLimit, filteredList.length);
-            
+
             const fragment = document.createDocumentFragment();
             for (let i = currentIndex; i < end; i++) {
                 const media = filteredList[i];
@@ -195,21 +195,22 @@ export class MediaGrid extends Component<MediaGridState> {
                 itemWrapper.className = 'media-item-wrapper animate-page-fade-in';
                 itemWrapper.style.opacity = '0';
                 itemWrapper.style.animation = `fadeIn 0.25s ease-out ${isFirst ? (i * 0.02) : 0}s forwards`;
-                
-                // Removed contentVisibility check for more reliable E2E tests
+
+                // PERFORMANCE: Help browser skip rendering off-screen items
+                itemWrapper.style.contentVisibility = 'auto';
                 itemWrapper.style.containIntrinsicSize = '180px 320px';
-                
+
                 const item = new MediaItem(itemWrapper, media, () => this.onMediaClick(media.id!));
                 item.render();
-                
+
                 fragment.appendChild(itemWrapper);
             }
             container.appendChild(fragment);
-            
+
             currentIndex = end;
             if (currentIndex < filteredList.length && !this.isDestroyed && renderId === this.currentRenderId) {
                 setTimeout(() => {
-                   if (!this.isDestroyed && renderId === this.currentRenderId) requestAnimationFrame(() => renderBatch());
+                    if (!this.isDestroyed && renderId === this.currentRenderId) requestAnimationFrame(() => renderBatch());
                 }, isFirst ? 50 : 20);
             }
         };

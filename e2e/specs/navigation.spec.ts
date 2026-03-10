@@ -1,13 +1,3 @@
-/**
- * CUJ: Navigation between all views works correctly
- * 
- * Verifies that:
- *   - Full navigation sequence works: Dashboard -> Media -> Profile -> 
- *     Dashboard -> Profile -> Media -> Dashboard
- *   - After each step, the correct view is active
- *   - After each step, the view is not in a broken state
- */
-
 import { waitForAppReady } from '../helpers/setup.js';
 import {
   navigateTo,
@@ -48,14 +38,12 @@ describe('Navigation CUJ', () => {
       await navigateTo(to);
       await browser.pause(500);
 
-      // Verify the correct view is now active
       expect(await verifyActiveView(to)).toBe(true);
     });
 
     it(`Step ${stepNumber}: ${to} view should not be broken`, async () => {
       await verifyViewNotBroken();
 
-      // Additional check: verify the view container has meaningful content
       const container = await $('#view-container');
       const children = await container.$$('*');
       expect(children.length).toBeGreaterThan(5);

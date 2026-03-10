@@ -17,11 +17,8 @@ describe('CUJ: Log Daily Activity', () => {
 
   it('should log a new activity for "Final Fantasy 7"', async () => {
     await logActivity('Final Fantasy 7', '60', '2024-03-31');
-
-    // Handle the "new media type" prompt
     await submitPrompt('Playing');
 
-    // Wait for modal to close and dashboard to refresh
     await $('#add-activity-form').waitForExist({ reverse: true, timeout: 5000 });
     await browser.pause(500);
   });
@@ -43,7 +40,6 @@ describe('CUJ: Log Daily Activity', () => {
     const gridContainer = await $('#media-grid-container');
     await gridContainer.waitForExist({ timeout: 5000 });
     
-    // Small pause to allow animations to complete and text to become "visible" to the driver
     await browser.pause(500);
 
     const items = await $$('.media-grid-item');

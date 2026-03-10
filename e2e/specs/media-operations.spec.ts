@@ -28,13 +28,9 @@ describe('CUJ: Media Extra Fields and Metadata Management', () => {
     const addExtraBtn = await $('#btn-add-extra');
     await addExtraBtn.click();
 
-    // First prompt for field name
     await submitPrompt(extraFieldKey);
-    
-    // Second prompt for field value
     await submitPrompt(extraFieldValue);
 
-    // Verify it appears in the detail view
     const extraField = await $(`//div[@data-ekey="${extraFieldKey}"]`);
     await extraField.waitForExist({ timeout: 5000 });
     const valText = await extraField.$('.editable-extra').getText();

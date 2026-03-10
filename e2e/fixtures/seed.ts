@@ -112,7 +112,7 @@ const MEDIA_ENTRIES = [
   {
     title: 'ダンジョン飯',
     media_type: 'Reading',
-    status: 'Complete',
+    status: 'Archived',
     language: 'Japanese',
     description: 'ダンジョンの中でモンスターを料理して食べる冒険者たちの物語。',
     content_type: 'Manga',

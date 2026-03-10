@@ -63,7 +63,7 @@ export async function showLogActivityModal(): Promise<boolean> {
         overlay.classList.add('active');
 
         const mediaList = await getAllMedia();
-        const activeMedia = mediaList.filter(m => !['Archived', 'Inactive', 'Finished', 'Completed'].includes(m.status));
+        const activeMedia = mediaList.filter(m => !['Archived', 'Inactive'].includes(m.status));
 
         overlay.innerHTML = `
             <div class="modal-content">
@@ -111,7 +111,7 @@ export async function showLogActivityModal(): Promise<boolean> {
 
             if (existingMedia?.id) {
                 mediaId = existingMedia.id;
-                if (['Archived', 'Inactive', 'Finished', 'Completed'].includes(existingMedia.status)) {
+                if (['Archived', 'Inactive'].includes(existingMedia.status)) {
                     existingMedia.status = 'Active';
                     await updateMedia(existingMedia);
                 }

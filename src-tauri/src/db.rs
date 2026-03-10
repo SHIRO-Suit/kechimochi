@@ -197,7 +197,7 @@ pub fn get_all_media(conn: &Connection) -> Result<Vec<Media>> {
         "SELECT id, title, media_type, status, language, description, cover_image, extra_data, content_type, tracking_status 
          FROM shared.media m
          ORDER BY 
-            CASE WHEN m.status NOT IN ('Archived', 'Inactive', 'Finished', 'Completed') THEN 0 ELSE 1 END,
+            CASE WHEN m.status NOT IN ('Archived', 'Inactive') THEN 0 ELSE 1 END,
             (SELECT MAX(date) FROM main.activity_logs WHERE media_id = m.id) DESC,
             m.id DESC"
     )?;
@@ -525,7 +525,7 @@ mod tests {
             id: Some(id),
             title: "呪術廻戦".to_string(),
             media_type: "Watching".to_string(),
-            status: "Completed".to_string(),
+            status: "Complete".to_string(),
             language: "Japanese".to_string(),
             description: "".to_string(),
             cover_image: "".to_string(),
@@ -537,7 +537,7 @@ mod tests {
 
         let all = get_all_media(&conn).unwrap();
         assert_eq!(all[0].media_type, "Watching");
-        assert_eq!(all[0].status, "Completed");
+        assert_eq!(all[0].status, "Complete");
     }
 
     #[test]
@@ -700,10 +700,9 @@ mod tests {
     fn test_media_ordering() {
         let conn = setup_test_db();
         
-        // 1. Completed media with recent activity
         let m1_id = add_media_with_id(&conn, &Media {
-            status: "Completed".to_string(),
-            ..sample_media("Completed Recent")
+            status: "Archived".to_string(),
+            ..sample_media("Archived Recent")
         }).unwrap();
         add_log(&conn, &ActivityLog { id: None, media_id: m1_id, duration_minutes: 10, date: "2024-03-01".to_string() }).unwrap();
 
@@ -720,7 +719,7 @@ mod tests {
             ..sample_media("Ongoing No Activity")
         }).unwrap();
 
-        // Expectation: Ongoing should be before Completed.
+        // Expectation: Ongoing should be before Complete.
         // Within Ongoing, "No Activity" should be after "Old Activity" (due to m.id DESC if dates are missing/older)
         // Wait, (SELECT MAX(date) ...) DESC will put older dates lower.
         // Ongoing (0) vs Completed (1). 
@@ -730,7 +729,7 @@ mod tests {
         let all = get_all_media(&conn).unwrap();
         assert_eq!(all[0].title, "Ongoing Old"); // Ongoing with activity
         assert_eq!(all[1].title, "Ongoing No Activity"); // Ongoing no activity
-        assert_eq!(all[2].title, "Completed Recent"); // Completed (even if recent)
+        assert_eq!(all[2].title, "Archived Recent"); // Archived (even if recent)
     }
 
     #[test]

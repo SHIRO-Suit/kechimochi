@@ -33,13 +33,11 @@ describe('Media Management CUJs', () => {
       await statusSelect.waitForExist();
       await statusSelect.selectByVisibleText('Ongoing');
       
-      // wait for save
       await browser.pause(500);
 
       const backBtn = await $('#btn-back-grid');
       await backBtn.click();
 
-      // Verify status label (LED) on the card
       const statusLabel = await $(`//div[contains(text(), "Cyberpunk 2077")]/ancestor::div[contains(@class, "media-item-wrapper")]//*[contains(@class, "status-ongoing")]`);
       expect(await statusLabel.isExisting()).toBe(true);
     });

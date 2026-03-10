@@ -14,45 +14,40 @@ describe('CUJ: Library Exploration (Search & Filter)', () => {
     });
 
     it('should filter library results correctly', async () => {
-        // 1) Open the app and navigate to "Library" via the navbar
         await navigateTo('media');
 
-        // 2) Locate the search bar & 3) Type "呪術" and verify "呪術廻戦" remains visible
         await setSearchQuery('呪術');
         expect(await isMediaVisible('呪術廻戦')).toBe(true);
-        // Verify unrelated entry (e.g., 'ペルソナ5') disappeared
         expect(await isMediaVisible('ペルソナ5')).toBe(false);
 
-        // 4) Clear the search input
         await setSearchQuery('');
         expect(await isMediaVisible('ペルソナ5')).toBe(true);
 
-        // 5) Open the activity type filter dropdown and select "Manga"
         await setMediaTypeFilter('Manga');
 
-        // 6) Verify that only Manga entries are displayed in the grid
         expect(await isMediaVisible('呪術廻戦')).toBe(true);
         expect(await isMediaVisible('ダンジョン飯')).toBe(true); 
         expect(await isMediaVisible('ペルソナ5')).toBe(false);
 
-        // 7) Open the tracking status filter and select "Ongoing"
         await setTrackingStatusFilter('Ongoing');
 
-        // 8) Verify that the displayed entries are both Manga and Ongoing
         // '呪術廻戦' was updated to 'Ongoing' in seed.ts for this test
         expect(await isMediaVisible('呪術廻戦')).toBe(true); 
-        expect(await isMediaVisible('ダンジョン飯')).toBe(false); // This is 'Complete' tracking status
+        expect(await isMediaVisible('ダンジョン飯')).toBe(false); 
 
-        // 9) Toggle the "Hide Archived" checkbox
+        await setTrackingStatusFilter('All');
+        await setMediaTypeFilter('All');
         await setHideArchived(true);
 
-        // 10) Verify that any media with the status "Archived" disappears
-        // '呪術廻戦' has status 'Completed' which counts as archived in the app logic
-        expect(await isMediaVisible('呪術廻戦')).toBe(false);
-        
-        // Reset "Hide Archived" and filters to verify visibility again
-        await setHideArchived(false);
+        // 'ダンジョン飯' has status 'Archived', so it should be hidden
+        expect(await isMediaVisible('ダンジョン飯')).toBe(false);
+        // '呪術廻戦' has status 'Active', so it remains visible
         expect(await isMediaVisible('呪術廻戦')).toBe(true);
+        // 'ある魔女が死ぬまで' has status 'Complete', but NOT archived, so it should be visible
+        expect(await isMediaVisible('ある魔女が死ぬまで')).toBe(true);
+        
+        await setHideArchived(false);
+        expect(await isMediaVisible('ダンジョン飯')).toBe(true);
 
         await setMediaTypeFilter('All');
         await setTrackingStatusFilter('All');

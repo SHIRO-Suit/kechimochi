@@ -1,13 +1,3 @@
-/**
- * CUJ: Profile view shows settings and stats
- * 
- * Verifies that:
- *   - Profile view renders correctly
- *   - Theme selector is present
- *   - Reading speed report card data is shown
- *   - Navigation back to dashboard works (regression test)
- */
-
 import { waitForAppReady } from '../helpers/setup.js';
 import {
   navigateTo,
@@ -28,14 +18,12 @@ describe('Profile CUJ', () => {
 
   it('should display the theme selector', async () => {
     const themeSelect = await $('#profile-select-theme');
-    // There should be at least one select element for theme
     if (await themeSelect.isExisting()) {
       expect(await themeSelect.isDisplayed()).toBe(true);
     }
   });
 
   it('should display reading speed report card', async () => {
-    // Look for elements related to the reading speed report
     const reportSection = await $('#profile-report-card');
     if (await reportSection.isExisting()) {
       expect(await reportSection.isDisplayed()).toBe(true);

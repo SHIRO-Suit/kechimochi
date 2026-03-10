@@ -5,7 +5,7 @@ pub struct Media {
     pub id: Option<i64>,
     pub title: String,
     pub media_type: String, // "Reading", "Watching", "Playing", "None", "Listening"
-    pub status: String,     // "Active", "Paused", "Completed", "Dropped", "Planned"
+    pub status: String,     // "Active", "Paused", "Complete", "Dropped", "Planned"
     pub language: String,
     pub description: String,
     pub cover_image: String,

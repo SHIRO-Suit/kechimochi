@@ -1,13 +1,3 @@
-/**
- * CUJ: Media library displays entries and supports filtering
- * 
- * Verifies that:
- *   - Media grid shows the expected number of entries from fixtures
- *   - Search/filter bar works to narrow down results
- *   - Clicking a media item opens the detail view
- *   - Detail view shows correct title and description
- */
-
 import { waitForAppReady } from '../helpers/setup.js';
 import {
   navigateTo,
@@ -28,7 +18,6 @@ describe('Media Grid CUJ', () => {
 
   it('should display media items from fixture data', async () => {
     const mediaItems = await $$('.media-grid-item');
-    // We seeded 10 media entries; some may be filtered by default status
     expect(mediaItems.length).toBeGreaterThan(0);
   });
 

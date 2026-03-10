@@ -103,7 +103,7 @@ export class ProfileView extends Component<ProfileState> {
                         <h3 style="margin: 0;">Reading Report Card</h3>
                         <button class="btn btn-primary" id="profile-btn-calculate-report" style="font-size: 0.8rem; padding: 0.3rem 0.6rem;">Calculate Report</button>
                     </div>
-                    <p style="color: var(--text-secondary); font-size: 0.9rem;">Aggregated reading speed for the last 12 months based on completed entries.</p>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem;">Aggregated reading speed for the last 12 months based on complete entries.</p>
                     
                     <div id="profile-report-card-content" style="display: flex; flex-direction: column; gap: 0.75rem; margin-top: 0.5rem; font-size: 0.95rem;">
                         ${this.renderReportContent()}

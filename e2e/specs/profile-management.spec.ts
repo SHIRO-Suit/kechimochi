@@ -1,13 +1,3 @@
-/**
- * CUJ: Profile Management
- * 
- * Verifies that:
- *   - Current profile name is displayed correctly
- *   - New profiles can be added
- *   - Profiles can be deleted
- *   - System reverts to previous profile after deletion
- */
-
 import { waitForAppReady } from '../helpers/setup.js';
 import {
   navigateTo,
@@ -40,7 +30,6 @@ describe('Profile Management CUJ', () => {
     
     await submitPrompt('BESTUSER');
     
-    // Wait for profile switch and app to stabilize
     await browser.pause(1000);
   });
 
@@ -62,10 +51,8 @@ describe('Profile Management CUJ', () => {
     const deleteProfileBtn = await $('#btn-delete-profile');
     await deleteProfileBtn.click();
     
-    // Handle the confirmation modal
     await confirmAction(true);
     
-    // Wait for reload and switch back
     await browser.pause(2000);
     await waitForAppReady();
   });

@@ -61,11 +61,11 @@ export async function waitForAppReady(timeout = 15000): Promise<void> {
   // 1. Check if we need to set the mock date
   await (browser as any).waitUntil(async () => {
     try {
-      const currentMock = await (browser as any).execute(() => localStorage.getItem('kechimochi_mock_date'));
+      const currentMock = await (browser as any).execute(() => sessionStorage.getItem('kechimochi_mock_date'));
       if (currentMock !== MOCK_DATE) {
         console.log(`[e2e] Setting kechimochi_mock_date to ${MOCK_DATE} and refreshing...`);
         await (browser as any).execute((date: string) => {
-          localStorage.setItem('kechimochi_mock_date', date);
+          sessionStorage.setItem('kechimochi_mock_date', date);
         }, MOCK_DATE);
         await (browser as any).refresh();
         return false; // Loop once more after refresh

@@ -12,7 +12,10 @@ import {
 import { getCurrentWindow } from '@tauri-apps/api/window';
 
 // Support global date mocking for E2E tests
-const mockDateStr = localStorage.getItem('kechimochi_mock_date');
+const mockDateStr = sessionStorage.getItem('kechimochi_mock_date');
+if (localStorage.getItem('kechimochi_mock_date')) {
+    localStorage.removeItem('kechimochi_mock_date');
+}
 if (mockDateStr) {
     console.log(`[kechimochi] Mocking system date to: ${mockDateStr}`);
     const originalDate = Date;

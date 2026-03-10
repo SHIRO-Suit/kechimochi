@@ -18,10 +18,13 @@ import {
 
 describe('Factory Reset CUJ', () => {
   before(async () => {
-    // Ensure we start as TESTUSER (seeding should have handled this, but we reinforce it)
+    // We set the profile in localStorage and THEN refresh to ensure the app picks it up
     await browser.execute(() => {
+        localStorage.clear();
+        sessionStorage.clear();
         localStorage.setItem('kechimochi_profile', 'TESTUSER');
     });
+    await browser.refresh(); 
     await waitForAppReady();
   });
 

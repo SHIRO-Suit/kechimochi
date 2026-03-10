@@ -159,7 +159,13 @@ export const config: WebdriverIO.Config = {
     process.env.SPEC_STAGE_DIR = STAGE_DIR;
     process.env.SPEC_NAME = specName;
 
-    // 4. Proactively create the requested subfolders
+    // 4. Pass isolated environment to the app via capabilities
+    caps['tauri:options'].envs = {
+        ...caps['tauri:options'].envs,
+        KECHIMOCHI_DATA_DIR: testDir
+    };
+
+    // 5. Proactively create the requested subfolders
     mkdirSync(path.join(STAGE_DIR, 'visual', 'actual'), { recursive: true });
     mkdirSync(path.join(STAGE_DIR, 'visual', 'diff'), { recursive: true });
     mkdirSync(path.join(STAGE_DIR, 'ocr'), { recursive: true });

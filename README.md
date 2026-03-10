@@ -156,19 +156,50 @@ Or just run the raw binary:
 
 ### 4. Running Tests
 
-The application includes a comprehensive Rust test suite to verify the database operations, aggregation logic, and CSV imports.
-
-To run the testing suite:
+#### Backend Tests
+Run the Rust test suite to verify database operations and logic:
 
 ```bash
 cd src-tauri
 cargo test
+cd ..
 ```
 
-To run TypeScript frontend type checking:
+#### Frontend Type Checking
+Run TypeScript type checking:
 
 ```bash
 npx tsc --noEmit
+```
+
+#### End-to-End (E2E) Tests
+Kechimochi uses WebdriverIO and Tauri Driver for automated E2E testing. These tests run on isolated temporary databases and do not affect your personal data.
+
+**Setup E2E Prerequisites:**
+Ensure `tauri-driver` is installed:
+```bash
+cargo install tauri-driver
+```
+
+**Run E2E Tests:**
+The `npm run e2e` command builds the app in debug mode, seeds the test databases, and executes the full suite:
+
+```bash
+npm run e2e
+```
+
+**Parallel Execution:**
+Tests run in parallel by default (2 instances). You can configure the number of parallel workers using the `E2E_MAX_INSTANCES` environment variable:
+
+```bash
+E2E_MAX_INSTANCES=4 npm run e2e:test
+```
+
+**Run Specific Specs:**
+To run only specific test files:
+
+```bash
+npm run e2e:test -- --spec specs/profile.spec.ts
 ```
 
 ## CSV Format

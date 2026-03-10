@@ -1,0 +1,73 @@
+import { waitForAppReady } from '../helpers/setup.js';
+import { navigateTo, verifyActiveView, submitPrompt, confirmAction } from '../helpers/interactions.js';
+
+describe('CUJ: Media Extra Fields and Metadata Management', () => {
+  before(async () => {
+    await waitForAppReady();
+  });
+
+  const targetMediaTitle = '呪術廻戦';
+  const extraFieldKey = 'Test Tag';
+  const extraFieldValue = 'Value 123';
+
+  it('should navigate to the library and open a media item', async () => {
+    await navigateTo('media');
+    expect(await verifyActiveView('media')).toBe(true);
+
+    const mediaItem = await $(`//div[@data-title="${targetMediaTitle}"]`);
+    await mediaItem.waitForDisplayed({ timeout: 5000 });
+    await mediaItem.click();
+
+    const detailTitle = await $('#media-title');
+    await browser.waitUntil(async () => {
+        return (await detailTitle.getText()) === targetMediaTitle;
+    }, { timeout: 5000, timeoutMsg: 'Title did not match expected value' });
+  });
+
+  it('should add a new extra field tag with data', async () => {
+    const addExtraBtn = await $('#btn-add-extra');
+    await addExtraBtn.click();
+
+    // First prompt for field name
+    await submitPrompt(extraFieldKey);
+    
+    // Second prompt for field value
+    await submitPrompt(extraFieldValue);
+
+    // Verify it appears in the detail view
+    const extraField = await $(`//div[@data-ekey="${extraFieldKey}"]`);
+    await extraField.waitForExist({ timeout: 5000 });
+    const valText = await extraField.$('.editable-extra').getText();
+    expect(valText).toBe(extraFieldValue);
+  });
+
+  it('should verify the tag persists after navigating away and back', async () => {
+    // Navigate back to grid
+    const backBtn = await $('#btn-back-grid');
+    await backBtn.click();
+    expect(await verifyActiveView('media')).toBe(true);
+
+    // Re-open the same item
+    const mediaItem = await $(`//div[@data-title="${targetMediaTitle}"]`);
+    await mediaItem.click();
+
+    // Verify tag is still there
+    const extraField = await $(`//div[@data-ekey="${extraFieldKey}"]`);
+    await extraField.waitForExist({ timeout: 5000 });
+    const valText = await extraField.$('.editable-extra').getText();
+    expect(valText).toBe(extraFieldValue);
+  });
+
+  it('should clear metadata and verify the tag is removed', async () => {
+    const clearMetaBtn = await $('#btn-clear-meta');
+    await clearMetaBtn.click();
+
+    // Handle confirmation modal
+    await confirmAction(true);
+
+    // Verify the extra field is gone
+    const extraField = await $(`//div[@data-ekey="${extraFieldKey}"]`);
+    await extraField.waitForExist({ reverse: true, timeout: 5000 });
+    expect(await extraField.isExisting()).toBe(false);
+  });
+});

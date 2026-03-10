@@ -85,10 +85,10 @@ export class MediaDetail extends Component<MediaDetailState> {
                 <div id="media-content-area" style="display: flex; gap: 2rem; flex: 1; overflow-y: auto;">
                     <!-- Left Column: Cover -->
                     <div style="flex: 0 0 300px; display: flex; flex-direction: column;">
-                        ${imgSrc 
-                            ? html`<img src="${imgSrc}" style="width: 100%; aspect-ratio: 2/3; object-fit: cover; border-radius: var(--radius-md); cursor: pointer;" id="media-cover-img" alt="Cover" title="Double click to change image" />`
-                            : html`<div style="width: 100%; aspect-ratio: 2/3; background: var(--bg-dark); border: 2px dashed var(--border-color); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-secondary);" id="media-cover-img" title="Double click to add image">No Image</div>`
-                        }
+                        ${imgSrc
+                ? html`<img src="${imgSrc}" style="width: 100%; aspect-ratio: 2/3; object-fit: cover; border-radius: var(--radius-md); cursor: pointer;" id="media-cover-img" alt="Cover" title="Double click to change image" />`
+                : html`<div style="width: 100%; aspect-ratio: 2/3; background: var(--bg-dark); border: 2px dashed var(--border-color); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-secondary);" id="media-cover-img" title="Double click to add image">No Image</div>`
+            }
                         <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 0.5rem;">
                             <button class="btn" id="btn-delete-media-detail" style="background-color: #ff4757; color: white; border: none; font-weight: bold; width: 100%; padding: 0.6rem; font-size: 0.9rem;">Delete Media</button>
                             <div style="font-size: 0.7rem; color: var(--text-secondary); line-height: 1.2; text-align: center;">
@@ -159,7 +159,7 @@ export class MediaDetail extends Component<MediaDetailState> {
         this.container.appendChild(detailView);
         this.setupListeners(detailView);
         this.renderStats(detailView);
-        
+
         const logsContainer = detailView.querySelector('#media-logs-container') as HTMLElement;
         new MediaLog(logsContainer, logs).render();
     }
@@ -277,7 +277,7 @@ export class MediaDetail extends Component<MediaDetailState> {
                         }
                     }
                 }
-            } catch (e) {}
+            } catch (e) { }
         }
 
         statsDiv.innerHTML = `
@@ -355,8 +355,8 @@ export class MediaDetail extends Component<MediaDetailState> {
                 };
 
                 input.addEventListener('blur', save);
-                input.addEventListener('keydown', ((ev: KeyboardEvent) => { 
-                    if (ev.key === 'Enter' && !isTextArea) (ev.target as HTMLInputElement).blur(); 
+                input.addEventListener('keydown', ((ev: KeyboardEvent) => {
+                    if (ev.key === 'Enter' && !isTextArea) (ev.target as HTMLInputElement).blur();
                 }) as EventListener);
 
                 el.replaceWith(input);
@@ -408,14 +408,14 @@ export class MediaDetail extends Component<MediaDetailState> {
         });
 
         root.querySelector('#btn-add-extra')?.addEventListener('click', async () => {
-             const key = await customPrompt("Enter field name (e.g. 'Author', 'Source URL'):");
-             if (!key) return;
-             const val = await customPrompt(`Enter value for "${key}":`);
-             let extraData = JSON.parse(this.state.media.extra_data || "{}");
-             extraData[key] = val || "";
-             this.state.media.extra_data = JSON.stringify(extraData);
-             await updateMedia(this.state.media);
-             this.render();
+            const key = await customPrompt("Enter field name (e.g. 'Author', 'Source URL'):");
+            if (!key) return;
+            const val = await customPrompt(`Enter value for "${key}":`);
+            let extraData = JSON.parse(this.state.media.extra_data || "{}");
+            extraData[key] = val || "";
+            this.state.media.extra_data = JSON.stringify(extraData);
+            await updateMedia(this.state.media);
+            this.render();
         });
 
         root.querySelectorAll('.delete-extra-btn').forEach(btn => {
@@ -431,8 +431,8 @@ export class MediaDetail extends Component<MediaDetailState> {
         });
 
         root.querySelector('#btn-import-meta')?.addEventListener('click', async () => {
-             const url = await customPrompt("Enter URL to fetch metadata from:");
-             if (url) await this.performMetadataImport(url);
+            const url = await customPrompt("Enter URL to fetch metadata from:");
+            if (url) await this.performMetadataImport(url);
         });
 
         root.querySelector('#btn-clear-meta')?.addEventListener('click', async () => {
@@ -474,7 +474,7 @@ export class MediaDetail extends Component<MediaDetailState> {
 
             // Apply selected merges
             if (merged.description !== undefined) this.state.media.description = merged.description;
-            
+
             // Handle extra data merges
             const finalExtraData = { ...currentExtraData, ...merged.extraData };
             this.state.media.extra_data = JSON.stringify(finalExtraData);

@@ -42,7 +42,7 @@ const MEDIA_ENTRIES = [
   {
     title: '呪術廻戦',
     media_type: 'Reading',
-    status: 'Completed',
+    status: 'Active',
     language: 'Japanese',
     description: '呪いをめぐる少年たちの戦いを描いたダークファンタジー。',
     content_type: 'Manga',

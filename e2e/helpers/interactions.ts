@@ -259,6 +259,17 @@ export async function isMediaVisible(title: string): Promise<boolean> {
 }
 
 /**
+ * Clicks a media item in the grid by its title.
+ */
+export async function clickMediaItem(title: string): Promise<void> {
+    const item = await $(`.media-grid-item[data-title="${title}"]`);
+    await item.waitForDisplayed({ timeout: 5000 });
+    await item.click();
+    // Detail view animation/load
+    await browser.pause(500);
+}
+
+/**
  * Handle the media import conflict modal.
  */
 export async function resolveConflicts(action: 'keep' | 'replace'): Promise<void> {
@@ -273,7 +284,47 @@ export async function resolveConflicts(action: 'keep' | 'replace'): Promise<void
     const confirmBtn = await $('#conflict-confirm');
     await confirmBtn.click();
     
-    // Wait for the success alert to appear after import
     await $('#alert-ok').waitForDisplayed({ timeout: 10000 });
     await dismissAlert();
+}
+
+/**
+ * Clicks the "Mark as Complete" button in Media Detail.
+ */
+export async function clickMarkAsComplete(): Promise<void> {
+    const btn = await $('#btn-mark-complete');
+    await btn.waitForDisplayed({ timeout: 5000 });
+    await btn.click();
+}
+
+/**
+ * Gets the current tracking status from the detail view dropdown.
+ */
+export async function getDetailTrackingStatus(): Promise<string> {
+    const select = await $('#media-tracking-status');
+    return (await select.getValue()) as string;
+}
+
+/**
+ * Checks if the archived/active toggle is in the "Active" position.
+ */
+export async function isArchivedStatusActive(): Promise<boolean> {
+    const label = await $('#status-label');
+    return (await label.getText()) === 'ACTIVE';
+}
+
+/**
+ * Toggles the archived/active status in the detail view.
+ */
+export async function toggleArchivedStatusDetail(): Promise<void> {
+    const slider = await $('#status-toggle + .slider');
+    await slider.click();
+}
+
+/**
+ * Clicks the "Back to Grid" button in Media Detail.
+ */
+export async function backToGrid(): Promise<void> {
+    const btn = await $('#btn-back-grid');
+    await btn.click();
 }

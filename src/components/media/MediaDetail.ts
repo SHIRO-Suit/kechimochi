@@ -394,7 +394,6 @@ export class MediaDetail extends Component<MediaDetailState> {
 
         root.querySelector('#btn-mark-complete')?.addEventListener('click', async () => {
             this.state.media.tracking_status = 'Complete';
-            this.state.media.status = 'Archived';
             await updateMedia(this.state.media);
             this.render();
         });

@@ -197,7 +197,11 @@ pub fn get_all_media(conn: &Connection) -> Result<Vec<Media>> {
         "SELECT id, title, media_type, status, language, description, cover_image, extra_data, content_type, tracking_status 
          FROM shared.media m
          ORDER BY 
-            CASE WHEN m.status NOT IN ('Archived', 'Inactive') THEN 0 ELSE 1 END,
+            CASE 
+                WHEN m.status NOT IN ('Archived', 'Inactive') AND m.tracking_status = 'Ongoing' THEN 0
+                WHEN m.status NOT IN ('Archived', 'Inactive') THEN 1
+                ELSE 2
+            END,
             (SELECT MAX(date) FROM main.activity_logs WHERE media_id = m.id) DESC,
             m.id DESC"
     )?;
@@ -700,36 +704,47 @@ mod tests {
     fn test_media_ordering() {
         let conn = setup_test_db();
         
+        // 1. Archived media with recent activity (should be last: Tier 2)
         let m1_id = add_media_with_id(&conn, &Media {
             status: "Archived".to_string(),
             ..sample_media("Archived Recent")
         }).unwrap();
         add_log(&conn, &ActivityLog { id: None, media_id: m1_id, duration_minutes: 10, date: "2024-03-01".to_string() }).unwrap();
 
-        // 2. Ongoing media with older activity
+        // 2. Active entry but NOT ongoing (should be middle: Tier 1)
         let m2_id = add_media_with_id(&conn, &Media {
-            status: "Ongoing".to_string(),
+            status: "Active".to_string(),
+            tracking_status: "Complete".to_string(),
+            ..sample_media("Active Complete")
+        }).unwrap();
+        add_log(&conn, &ActivityLog { id: None, media_id: m2_id, duration_minutes: 10, date: "2024-03-02".to_string() }).unwrap();
+
+        // 3. Ongoing media with older activity (should be first: Tier 0)
+        let m3_id = add_media_with_id(&conn, &Media {
+            status: "Active".to_string(),
+            tracking_status: "Ongoing".to_string(),
             ..sample_media("Ongoing Old")
         }).unwrap();
-        add_log(&conn, &ActivityLog { id: None, media_id: m2_id, duration_minutes: 10, date: "2024-01-01".to_string() }).unwrap();
+        add_log(&conn, &ActivityLog { id: None, media_id: m3_id, duration_minutes: 10, date: "2024-01-01".to_string() }).unwrap();
 
-        // 3. Ongoing media with NO activity
-        add_media_with_id(&conn, &Media {
-            status: "Ongoing".to_string(),
+        // 4. Ongoing media with NO activity (should be after Tier 0 with activity)
+        let _m4_id = add_media_with_id(&conn, &Media {
+            status: "Active".to_string(),
+            tracking_status: "Ongoing".to_string(),
             ..sample_media("Ongoing No Activity")
         }).unwrap();
 
-        // Expectation: Ongoing should be before Complete.
-        // Within Ongoing, "No Activity" should be after "Old Activity" (due to m.id DESC if dates are missing/older)
-        // Wait, (SELECT MAX(date) ...) DESC will put older dates lower.
-        // Ongoing (0) vs Completed (1). 
-        // m2 and m3 are 0. m1 is 1.
-        // So [m2, m3, m1] or [m3, m2, m1]
+        // Expectation: 
+        // 1. Ongoing Old (Tier 0, has activity)
+        // 2. Ongoing No Activity (Tier 0, no activity)
+        // 3. Active Complete (Tier 1)
+        // 4. Archived Recent (Tier 2)
         
         let all = get_all_media(&conn).unwrap();
-        assert_eq!(all[0].title, "Ongoing Old"); // Ongoing with activity
-        assert_eq!(all[1].title, "Ongoing No Activity"); // Ongoing no activity
-        assert_eq!(all[2].title, "Archived Recent"); // Archived (even if recent)
+        assert_eq!(all[0].title, "Ongoing Old");
+        assert_eq!(all[1].title, "Ongoing No Activity");
+        assert_eq!(all[2].title, "Active Complete");
+        assert_eq!(all[3].title, "Archived Recent");
     }
 
     #[test]

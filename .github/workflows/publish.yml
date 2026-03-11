@@ -63,9 +63,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NO_STRIP: true
         with:
-          tagName: kechimochi-v${{ steps.versioning.outputs.VERSION }}
-          releaseName: "Kechimochi v${{ steps.versioning.outputs.VERSION }}"
-          releaseBody: "Development build for commit ${{ github.event.workflow_run.head_sha }}"
-          releaseDraft: true
-          prerelease: true
           args: --bundles appimage
+
+      - name: upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kechimochi-appimage-${{ steps.versioning.outputs.VERSION }}
+          path: src-tauri/target/release/bundle/appimage/*.AppImage

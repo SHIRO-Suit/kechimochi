@@ -198,8 +198,8 @@ pub fn get_all_media(conn: &Connection) -> Result<Vec<Media>> {
          FROM shared.media m
          ORDER BY 
             CASE 
-                WHEN m.status NOT IN ('Archived', 'Inactive') AND m.tracking_status = 'Ongoing' THEN 0
-                WHEN m.status NOT IN ('Archived', 'Inactive') THEN 1
+                WHEN m.status != 'Archived' AND m.tracking_status = 'Ongoing' THEN 0
+                WHEN m.status != 'Archived' THEN 1
                 ELSE 2
             END,
             (SELECT MAX(date) FROM main.activity_logs WHERE media_id = m.id) DESC,

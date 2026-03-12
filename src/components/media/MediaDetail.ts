@@ -224,9 +224,9 @@ export class MediaDetail extends Component<MediaDetailState> {
     private getContentTypeOptions(media: Media): string {
         let validOptions: string[] = ['Unknown'];
         const mType = media.media_type;
-        if (mType === 'Reading') validOptions.push('Visual Novel', 'Manga', 'Novel');
+        if (mType === 'Reading') validOptions.push('Visual Novel', 'Manga', 'Novel', 'WebNovel', 'NonFiction');
         else if (mType === 'Playing') validOptions.push('Videogame');
-        else if (mType === 'Listening') validOptions.push('Podcast');
+        else if (mType === 'Listening') validOptions.push('Audio');
         else if (mType === 'Watching') validOptions.push('Anime', 'Movie', 'Youtube Video', 'Livestream', 'Drama');
         return validOptions.map(opt => `<option value="${opt}" ${opt === media.content_type ? 'selected' : ''}>${opt}</option>`).join('');
     }
@@ -288,7 +288,7 @@ export class MediaDetail extends Component<MediaDetailState> {
         else if (media.media_type === "Reading") { verb = "Read"; totalLabel = "Total Readtime"; }
 
         let readingSpeedHtml = "";
-        const isReadingType = ["Novel", "Visual Novel", "Manga"].includes(media.content_type || "");
+        const isReadingType = ["Novel", "Visual Novel", "Manga", "WebNovel", "NonFiction"].includes(media.content_type || "");
         if (isReadingType && totalMin > 0) {
             try {
                 const extra = JSON.parse(media.extra_data || "{}");

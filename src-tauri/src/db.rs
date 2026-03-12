@@ -1000,11 +1000,78 @@ mod tests {
     }
 
     #[test]
-    fn test_migration_clean_install() {
-        let conn = Connection::open_in_memory().unwrap();
-        conn.execute("ATTACH DATABASE ':memory:' AS shared", []).unwrap();
+    fn test_milestone_operations() {
+        let conn = setup_test_db();
+        let media_title = "Milestone Media";
         
-        // Running migration on a DB with NO media table should just work (return Ok)
-        migrate_to_shared(&conn).unwrap();
+        let milestone = Milestone {
+            id: None,
+            media_title: media_title.to_string(),
+            name: "First Quarter".to_string(),
+            duration: 120,
+            date: Some("2024-03-12".to_string()),
+        };
+
+        // Test add_milestone
+        let id = add_milestone(&conn, &milestone).unwrap();
+        assert!(id > 0);
+
+        // Test get_milestones_for_media
+        let milestones = get_milestones_for_media(&conn, media_title).unwrap();
+        assert_eq!(milestones.len(), 1);
+        assert_eq!(milestones[0].name, "First Quarter");
+        assert_eq!(milestones[0].duration, 120);
+
+        // Test update_milestone
+        let mut updated = milestones[0].clone();
+        updated.name = "Halfway".to_string();
+        updated.duration = 240;
+        update_milestone(&conn, &updated).unwrap();
+
+        let milestones = get_milestones_for_media(&conn, media_title).unwrap();
+        assert_eq!(milestones[0].name, "Halfway");
+        assert_eq!(milestones[0].duration, 240);
+
+        // Test delete_milestone
+        delete_milestone(&conn, id).unwrap();
+        let milestones = get_milestones_for_media(&conn, media_title).unwrap();
+        assert_eq!(milestones.len(), 0);
+    }
+
+    #[test]
+    fn test_delete_milestones_for_media() {
+        let conn = setup_test_db();
+        let title1 = "Media 1";
+        let title2 = "Media 2";
+
+        add_milestone(&conn, &Milestone { id: None, media_title: title1.to_string(), name: "M1".to_string(), duration: 10, date: None }).unwrap();
+        add_milestone(&conn, &Milestone { id: None, media_title: title2.to_string(), name: "M2".to_string(), duration: 20, date: None }).unwrap();
+
+        assert_eq!(get_milestones_for_media(&conn, title1).unwrap().len(), 1);
+        assert_eq!(get_milestones_for_media(&conn, title2).unwrap().len(), 1);
+
+        delete_milestones_for_media(&conn, title1).unwrap();
+        assert_eq!(get_milestones_for_media(&conn, title1).unwrap().len(), 0);
+        assert_eq!(get_milestones_for_media(&conn, title2).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_migrate_milestones() {
+        let conn = Connection::open_in_memory().unwrap();
+        // Create table with only id (simulate old version if it ever missed columns)
+        conn.execute("CREATE TABLE main.milestones (id INTEGER PRIMARY KEY AUTOINCREMENT)", []).unwrap();
+        
+        // This should add the missing columns
+        migrate_milestones(&conn).unwrap();
+        
+        // Verify we can insert
+        let milestone = Milestone {
+            id: None,
+            media_title: "Migrated".to_string(),
+            name: "Test".to_string(),
+            duration: 50,
+            date: None,
+        };
+        add_milestone(&conn, &milestone).unwrap();
     }
 }

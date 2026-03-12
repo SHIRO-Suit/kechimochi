@@ -74,6 +74,9 @@ jobs:
         run: cargo test
         working-directory: src-tauri
 
+      - name: vitest (frontend)
+        run: npm run test
+
       - name: build e2e debug binary
         run: npm run e2e:build
 

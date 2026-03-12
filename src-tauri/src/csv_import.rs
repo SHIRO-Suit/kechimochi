@@ -662,4 +662,52 @@ mod tests {
 
         std::fs::remove_dir_all(temp_dir).ok();
     }
+
+    #[test]
+    fn test_export_milestones_csv() {
+        let conn = setup_test_db();
+        db::add_milestone(&conn, &Milestone { 
+            id: None, 
+            media_title: "Export M".into(), 
+            name: "M1".into(), 
+            duration: 120, 
+            date: Some("2024-03-12".into()) 
+        }).unwrap();
+
+        let dir = std::env::temp_dir();
+        let path = dir.join("milestones_export.csv");
+        let path_str = path.to_str().unwrap().to_string();
+
+        let count = export_milestones_csv(&conn, &path_str).unwrap();
+        assert_eq!(count, 1);
+
+        let content = std::fs::read_to_string(&path).unwrap();
+        assert!(content.contains("Export M"));
+        assert!(content.contains("M1"));
+        assert!(content.contains("120"));
+        assert!(content.contains("2024-03-12"));
+
+        std::fs::remove_file(path).ok();
+    }
+
+    #[test]
+    fn test_import_milestones_csv() {
+        let mut conn = setup_test_db();
+        let csv_path = write_csv(
+            "Media Title,Name,Duration,Date\n\
+             Imported Media,First Quest,60,2024-01-01\n\
+             Imported Media,Second Quest,120,\n"
+        );
+
+        let count = import_milestones_csv(&mut conn, &csv_path).unwrap();
+        assert_eq!(count, 2);
+
+        let milestones = db::get_milestones_for_media(&conn, "Imported Media").unwrap();
+        assert_eq!(milestones.len(), 2);
+        assert_eq!(milestones[0].name, "First Quest");
+        assert_eq!(milestones[1].name, "Second Quest");
+        assert_eq!(milestones[1].date, None);
+
+        std::fs::remove_file(csv_path).ok();
+    }
 }

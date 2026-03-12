@@ -11,7 +11,7 @@ export class BookwalkerImporter implements MetadataImporter {
     async fetch(url: string, targetVolume?: number): Promise<ScrapedMetadata> {
         let currentUrl = url;
         const parser = new DOMParser();
-        let html = await invoke<string>('fetch_external_json', { url: currentUrl, method: "GET" });
+        const html = await invoke<string>('fetch_external_json', { url: currentUrl, method: "GET" });
         let doc = parser.parseFromString(html, 'text/html');
 
         if (targetVolume !== undefined) {
@@ -41,6 +41,7 @@ export class BookwalkerImporter implements MetadataImporter {
         }
 
         if (!seriesUrl) {
+            // eslint-disable-next-line no-console
             console.warn(`Could not find a Series List link. Using original URL.`);
             return null;
         }
@@ -56,6 +57,7 @@ export class BookwalkerImporter implements MetadataImporter {
             return { url: fullUrl, doc: parser.parseFromString(html, 'text/html') };
         }
 
+        // eslint-disable-next-line no-console
         console.warn(`Could not find Volume ${targetVolume} on series list. Using original URL.`);
         return null;
     }
@@ -101,7 +103,7 @@ export class BookwalkerImporter implements MetadataImporter {
             if (a?.textContent) extraData["Series Name"] = a.textContent.trim().replace(/\(著者\)/g, '').trim();
         } else if (header === "著者") {
             const authors = Array.from(dd.querySelectorAll('a'))
-                .map(a => a.textContent?.trim().replace(/\(.*?\)/g, '').trim()).filter(Boolean);
+                .map(a => a.textContent?.trim().replace(/\([^()]*\)/g, '').trim()).filter(Boolean);
             if (authors.length > 0) extraData["Author"] = [...new Set(authors)].join(", ");
         } else if (header === "出版社") {
             const a = dd.querySelector('a');

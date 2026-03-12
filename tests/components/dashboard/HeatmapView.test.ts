@@ -3,7 +3,7 @@ import { HeatmapView } from '../../../src/components/dashboard/HeatmapView';
 
 describe('HeatmapView', () => {
     let container: HTMLElement;
-    let onYearChange: any;
+    let onYearChange: (offset: number) => void;
 
     beforeEach(() => {
         container = document.createElement('div');

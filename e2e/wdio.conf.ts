@@ -14,6 +14,7 @@ const STABLE_RUN_ID = process.env.TEST_RUN_ID || new Date().toISOString().replac
 const LOGS_DIR = path.join(__dirname, 'logs', `test_run_${STABLE_RUN_ID}`);
 
 if (process.env.TEST_RUN_ID) {
+    // eslint-disable-next-line no-console
     console.log(`[e2e] Worker process using inherited TEST_RUN_ID: ${STABLE_RUN_ID}`);
 }
 
@@ -60,7 +61,7 @@ export const config: WebdriverIO.Config = {
         __dirname, '..', 'src-tauri', 'target', 'debug', 'kechimochi'
       ),
     },
-  } as any],
+  } as unknown as WebdriverIO.Capabilities],
 
   // ==================
   // Test Configuration
@@ -123,7 +124,9 @@ export const config: WebdriverIO.Config = {
     mkdirSync(LOGS_DIR, { recursive: true });
     process.env.TEST_RUN_ID = STABLE_RUN_ID;
 
+    // eslint-disable-next-line no-console
     console.log(`[e2e] Test run ID: ${STABLE_RUN_ID}`);
+    // eslint-disable-next-line no-console
     console.log(`[e2e] Logs directory: ${LOGS_DIR}`);
   },
 
@@ -131,7 +134,7 @@ export const config: WebdriverIO.Config = {
    * Spawn tauri-driver right before each WebDriver session.
    * This is the correct hook per the official Tauri docs.
    */
-  beforeSession: async (config: any, caps: any, specs: string[]) => {
+  beforeSession: async (config: WebdriverIO.Config, caps: WebdriverIO.Capabilities, specs: string[]) => {
     const specFile = specs[0];
     const specName = path.basename(specFile, '.spec.ts');
     
@@ -147,9 +150,11 @@ export const config: WebdriverIO.Config = {
     
     // Update capability port so WDIO connects to the correct driver
     config.port = tauriDriverPort;
-    caps.port = tauriDriverPort;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (caps as any).port = tauriDriverPort;
 
     // 3. Create a transient staging directory in /tmp
+    // eslint-disable-next-line sonarjs/pseudo-random
     const STAGE_DIR = path.join(os.tmpdir(), `kechimochi-e2e-${Math.random().toString(36).slice(2)}`);
     const { mkdirSync, appendFileSync, existsSync } = await import('fs');
     mkdirSync(STAGE_DIR, { recursive: true });
@@ -158,7 +163,9 @@ export const config: WebdriverIO.Config = {
     process.env.SPEC_NAME = specName;
 
     // 4. Pass isolated environment to the app via capabilities
+    // @ts-expect-error - tauri options
     caps['tauri:options'].envs = {
+        // @ts-expect-error - tauri options
         ...caps['tauri:options'].envs,
         KECHIMOCHI_DATA_DIR: testDir
     };
@@ -178,15 +185,24 @@ export const config: WebdriverIO.Config = {
     // Helper to log safely even if stageDir disappears during move
     const log = (msg: string | Buffer) => {
       if (existsSync(STAGE_DIR)) {
-        try { appendFileSync(logFile, msg); } catch { }
+        try { 
+            appendFileSync(logFile, msg); 
+        } catch (e: unknown) { 
+            /* ignore log errors during shutdown */ 
+            // eslint-disable-next-line no-console
+            if (process.env.DEBUG) console.error('Failed to log to file', (e as Error).message);
+        }
       }
     };
 
+    // eslint-disable-next-line no-console
     console.log(`\n[e2e] [${specName}] Worker ${process.env.WDIO_WORKER_ID} starting...`);
+    // eslint-disable-next-line no-console
     console.log(`[e2e] [${specName}] Port: ${tauriDriverPort}, Data: ${testDir}`);
 
     // 5. Spawn driver
     tauriDriver = spawn(
+      // eslint-disable-next-line sonarjs/no-os-command-from-path
       'tauri-driver',
       [
         '--port', tauriDriverPort.toString(),
@@ -207,17 +223,24 @@ export const config: WebdriverIO.Config = {
     tauriDriver.stderr?.on('data', log);
 
     // Wait for driver
+    // eslint-disable-next-line no-console
     console.log(`[e2e] [${specName}] Initializing tauri-driver (3s)...`);
     const { execSync } = await import('child_process');
-    try { execSync('sleep 3'); } catch { }
+    try { 
+        execSync('sleep 3'); 
+    } catch { 
+        /* ignore */ 
+    }
 
     tauriDriver.on('error', (error: Error) => {
+      // eslint-disable-next-line no-console
       console.error(`[e2e] [${specName}] tauri-driver error:`, error);
       log(`[e2e] tauri-driver error: ${error.message}\n`);
       process.exit(1);
     });
 
     tauriDriver.on('exit', (code: number | null) => {
+      // eslint-disable-next-line no-console
       console.log(`[e2e] [${specName}] tauri-driver process exited with code: ${code}`);
       log(`[e2e] tauri-driver process exited with code: ${code}\n`);
       tauriDriver._finalExitCode = code;
@@ -246,7 +269,7 @@ export const config: WebdriverIO.Config = {
   /**
    * After each test, capture screenshot on failure.
    */
-  afterTest: async (test: any, _context: any, { passed }: { passed: boolean }) => {
+  afterTest: async (test: { title: string }, _context: unknown, { passed }: { passed: boolean }) => {
     if (!passed) {
       const stageDir = process.env.SPEC_STAGE_DIR;
       if (stageDir) {
@@ -270,17 +293,25 @@ async function stopTauriDriver() {
     tauriDriver.kill('SIGTERM');
 
     let attempts = 0;
-    while (tauriDriver && (tauriDriver as any)._finalExitCode === undefined && attempts < 15) {
+    while (tauriDriver && tauriDriver._finalExitCode === undefined && attempts < 15) {
       const { execSync } = await import('child_process');
-      try { execSync('sleep 0.2'); } catch { }
+      try { 
+          execSync('sleep 0.2'); 
+      } catch { 
+          /* ignore */ 
+      }
       attempts++;
     }
 
     const stageDir = process.env.SPEC_STAGE_DIR;
     if (stageDir) {
       const logFile = path.join(stageDir, 'tauri-driver.log');
-      const finalCode = (tauriDriver as any)._finalExitCode;
-      try { appendFileSync(logFile, `\n[e2e] Session Complete with exit code: ${finalCode}\n`); } catch { }
+      const finalCode = tauriDriver._finalExitCode;
+      try { 
+          appendFileSync(logFile, `\n[e2e] Session Complete with exit code: ${finalCode}\n`); 
+      } catch { 
+          /* ignore */ 
+      }
     }
   }
 }
@@ -292,12 +323,14 @@ async function relocateArtifacts(stageDir: string, specName: string) {
   if (existsSync(stageDir)) {
     try {
       const stagedFiles = readdirSync(stageDir, { recursive: true });
+      // eslint-disable-next-line no-console
       console.log(`[e2e] [${specName}] Staging area contains: ${stagedFiles.join(', ')}`);
 
       mkdirSync(finalDir, { recursive: true });
       cpSync(stageDir, finalDir, { recursive: true });
       rmSync(stageDir, { recursive: true, force: true });
     } catch (err) {
+      // eslint-disable-next-line no-console
       console.error(`[e2e] [${specName}] Failed to move artifacts:`, err);
     }
   }
@@ -305,5 +338,6 @@ async function relocateArtifacts(stageDir: string, specName: string) {
 
 function cleanupTestData(testDir: string, specName: string) {
   cleanupTestDir(testDir);
+  // eslint-disable-next-line no-console
   console.log(`[e2e] [${specName}] Cleaned up isolated data directory: ${testDir}`);
 }

@@ -15,12 +15,15 @@ vi.mock('../../../src/api', () => ({
     downloadAndSaveImage: vi.fn(),
 }));
 
+import { Media, Milestone } from '../../../src/api';
+import * as importers from '../../../src/importers';
+import { ScrapedMetadata } from '../../../src/importers';
 vi.mock('../../../src/importers', () => ({
     fetchMetadataForUrl: vi.fn(),
-    getAvailableSourcesForContentType: vi.fn(() => ['VNDB']),
+    isValidImporterUrl: vi.fn(),
+    getImportersForContentType: vi.fn(() => []),
+    getAvailableSourcesForContentType: vi.fn(() => []),
 }));
-
-import * as importers from '../../../src/importers';
 
 vi.mock('../../../src/modals', () => ({
     customConfirm: vi.fn(),
@@ -68,9 +71,10 @@ describe('MediaDetail', () => {
         vi.mocked(api.getMilestones).mockResolvedValue([]);
         vi.mocked(api.readFileBytes).mockResolvedValue([1, 2, 3]);
 
-        const component = new MediaDetail(container, { ...mockMedia } as any, [], [mockMedia as any], 0, mockCallbacks);
+        const component = new MediaDetail(container, { ...mockMedia } as unknown as Media, [], [mockMedia as unknown as Media], 0, mockCallbacks);
         
-        await vi.waitUntil(() => (component as any).state.imgSrc === 'blob:abc');
+        // @ts-expect-error - accessing private state for testing
+        await vi.waitUntil(() => component.state.imgSrc === 'blob:abc');
         component.render();
 
         expect(container.textContent).toContain('Author');
@@ -79,7 +83,7 @@ describe('MediaDetail', () => {
 
     it('should handle extra field deletion', async () => {
         vi.mocked(api.getMilestones).mockResolvedValue([]);
-        const component = new MediaDetail(container, { ...mockMedia } as any, [], [mockMedia as any], 0, mockCallbacks);
+        const component = new MediaDetail(container, { ...mockMedia } as unknown as Media, [], [mockMedia as unknown as Media], 0, mockCallbacks);
         component.render();
 
         const deleteExtraBtn = container.querySelector('.delete-extra-btn') as HTMLElement;
@@ -94,7 +98,7 @@ describe('MediaDetail', () => {
         vi.mocked(api.getMilestones).mockResolvedValue([]);
         vi.mocked(modals.customConfirm).mockResolvedValue(true);
 
-        const component = new MediaDetail(container, { ...mockMedia } as any, [], [mockMedia as any], 0, mockCallbacks);
+        const component = new MediaDetail(container, { ...mockMedia } as unknown as Media, [], [mockMedia as unknown as Media], 0, mockCallbacks);
         component.render();
 
         const deleteBtn = container.querySelector('#btn-delete-media-detail') as HTMLElement;
@@ -108,9 +112,9 @@ describe('MediaDetail', () => {
     it('should handle adding a milestone', async () => {
         vi.mocked(api.getMilestones).mockResolvedValue([]);
         const newMilestone = { name: 'M1', duration: 100 };
-        vi.mocked(modals.showAddMilestoneModal).mockResolvedValue(newMilestone as any);
+        vi.mocked(modals.showAddMilestoneModal).mockResolvedValue(newMilestone as unknown as Milestone);
 
-        const component = new MediaDetail(container, { ...mockMedia } as any, [], [mockMedia as any], 0, mockCallbacks);
+        const component = new MediaDetail(container, { ...mockMedia } as unknown as Media, [], [mockMedia as unknown as Media], 0, mockCallbacks);
         component.render();
 
         const addBtn = container.querySelector('#btn-add-milestone') as HTMLElement;
@@ -122,7 +126,7 @@ describe('MediaDetail', () => {
 
     it('should edit fields on double click', async () => {
         vi.mocked(api.getMilestones).mockResolvedValue([]);
-        const component = new MediaDetail(container, { ...mockMedia } as any, [], [mockMedia as any], 0, mockCallbacks);
+        const component = new MediaDetail(container, { ...mockMedia } as unknown as Media, [], [mockMedia as unknown as Media], 0, mockCallbacks);
         component.render();
 
         const titleEl = container.querySelector('#media-title') as HTMLElement;
@@ -137,6 +141,7 @@ describe('MediaDetail', () => {
     });
 
     it('should handle metadata import', async () => {
+        vi.mocked(importers.getAvailableSourcesForContentType).mockReturnValue(['MockSource']);
         vi.mocked(api.getMilestones).mockResolvedValue([]);
         const mockScraped = {
             title: 'Scraped',
@@ -144,14 +149,14 @@ describe('MediaDetail', () => {
             coverImageUrl: 'scraped.jpg',
             extraData: { 'Genre': 'New' }
         };
-        vi.mocked(importers.fetchMetadataForUrl).mockResolvedValue(mockScraped as any);
+        vi.mocked(importers.fetchMetadataForUrl).mockResolvedValue(mockScraped as unknown as ScrapedMetadata);
         vi.mocked(modals.showImportMergeModal).mockResolvedValue({
             description: 'Scraped Desc',
             extraData: { 'Genre': 'New' },
             coverImageUrl: 'scraped.jpg'
         });
 
-        const component = new MediaDetail(container, { ...mockMedia } as any, [], [mockMedia as any], 0, mockCallbacks);
+        const component = new MediaDetail(container, { ...mockMedia } as unknown as Media, [], [mockMedia as unknown as Media], 0, mockCallbacks);
         component.render();
 
         vi.mocked(modals.customPrompt).mockResolvedValue('https://vndb.org/v1');
@@ -163,11 +168,12 @@ describe('MediaDetail', () => {
     });
 
     it('should handle failed metadata import', async () => {
+        vi.mocked(importers.getAvailableSourcesForContentType).mockReturnValue(['MockSource']);
         vi.mocked(api.getMilestones).mockResolvedValue([]);
         vi.mocked(importers.fetchMetadataForUrl).mockRejectedValue(new Error('Network error'));
         vi.mocked(modals.customPrompt).mockResolvedValue('https://badurl.com');
 
-        const component = new MediaDetail(container, { ...mockMedia } as any, [], [mockMedia as any], 0, mockCallbacks);
+        const component = new MediaDetail(container, { ...mockMedia } as unknown as Media, [], [mockMedia as unknown as Media], 0, mockCallbacks);
         component.render();
 
         const importBtn = container.querySelector('#btn-import-meta') as HTMLElement;
@@ -177,37 +183,37 @@ describe('MediaDetail', () => {
     });
 
     it('should handle image download failure during import', async () => {
+        vi.mocked(importers.getAvailableSourcesForContentType).mockReturnValue(['MockSource']);
         const mockScraped = {
             title: 'Scraped',
             coverImageUrl: 'scraped.jpg',
             extraData: {}
         };
-        vi.mocked(importers.fetchMetadataForUrl).mockResolvedValue(mockScraped as any);
+        vi.mocked(importers.fetchMetadataForUrl).mockResolvedValue(mockScraped as unknown as ScrapedMetadata);
         vi.mocked(modals.showImportMergeModal).mockResolvedValue({
             coverImageUrl: 'scraped.jpg',
             extraData: {}
-        } as any);
+        } as unknown as ScrapedMetadata);
         vi.mocked(api.downloadAndSaveImage).mockRejectedValue(new Error('Download failed'));
         vi.mocked(modals.customPrompt).mockResolvedValue('https://vndb.org/v1');
 
-        const component = new MediaDetail(container, { ...mockMedia } as any, [], [mockMedia as any], 0, mockCallbacks);
+        const component = new MediaDetail(container, { ...mockMedia } as unknown as Media, [], [mockMedia as unknown as Media], 0, mockCallbacks);
         component.render();
 
         const importBtn = container.querySelector('#btn-import-meta') as HTMLElement;
         importBtn.click();
 
-        const originalError = console.error;
-        console.error = vi.fn();
+        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
         await vi.waitFor(() => expect(api.downloadAndSaveImage).toHaveBeenCalled());
         // The error is just logged to console, so it shouldn't alert and it should still update the media
         expect(api.updateMedia).toHaveBeenCalled();
 
-        console.error = originalError;
+        consoleSpy.mockRestore();
     });
 
     it('should handle tracking status changes', async () => {
-        const component = new MediaDetail(container, { ...mockMedia } as any, [], [mockMedia as any], 0, mockCallbacks);
+        const component = new MediaDetail(container, { ...mockMedia } as unknown as Media, [], [mockMedia as unknown as Media], 0, mockCallbacks);
         component.render();
 
         const statusSelect = container.querySelector('#media-tracking-status') as HTMLSelectElement;
@@ -218,7 +224,7 @@ describe('MediaDetail', () => {
     });
 
     it('should handle marking as complete', async () => {
-        const component = new MediaDetail(container, { ...mockMedia } as any, [], [mockMedia as any], 0, mockCallbacks);
+        const component = new MediaDetail(container, { ...mockMedia } as unknown as Media, [], [mockMedia as unknown as Media], 0, mockCallbacks);
         component.render();
 
         const completeBtn = container.querySelector('#btn-mark-complete') as HTMLElement;
@@ -229,7 +235,7 @@ describe('MediaDetail', () => {
 
     it('should handle clearing metadata', async () => {
         vi.mocked(modals.customConfirm).mockResolvedValue(true);
-        const component = new MediaDetail(container, { ...mockMedia } as any, [], [mockMedia as any], 0, mockCallbacks);
+        const component = new MediaDetail(container, { ...mockMedia } as unknown as Media, [], [mockMedia as unknown as Media], 0, mockCallbacks);
         component.render();
 
         const clearBtn = container.querySelector('#btn-clear-meta') as HTMLElement;
@@ -241,8 +247,9 @@ describe('MediaDetail', () => {
     it('should handle deleting all milestones', async () => {
         vi.mocked(modals.customConfirm).mockResolvedValue(true);
         const milestones = [{ id: 1, name: 'M1', duration: 10 }];
-        const component = new MediaDetail(container, { ...mockMedia } as any, [], [mockMedia as any], 0, mockCallbacks);
-        (component as any).state.milestones = milestones;
+        const component = new MediaDetail(container, { ...mockMedia } as unknown as Media, [], [mockMedia as unknown as Media], 0, mockCallbacks);
+        // @ts-expect-error - accessing private state
+        component.state.milestones = milestones as unknown as Milestone[];
         component.render();
 
         const clearMilestonesBtn = container.querySelector('#btn-clear-milestones') as HTMLElement;
@@ -254,8 +261,9 @@ describe('MediaDetail', () => {
     it('should handle individual milestone deletion', async () => {
         vi.mocked(modals.customConfirm).mockResolvedValue(true);
         const milestones = [{ id: 123, name: 'M1', duration: 10 }];
-        const component = new MediaDetail(container, { ...mockMedia } as any, [], [mockMedia as any], 0, mockCallbacks);
-        (component as any).state.milestones = milestones;
+        const component = new MediaDetail(container, { ...mockMedia } as unknown as Media, [], [mockMedia as unknown as Media], 0, mockCallbacks);
+        // @ts-expect-error - accessing private state
+        component.state.milestones = milestones as unknown as Milestone[];
         component.render();
 
         const deleteBtn = container.querySelector('.delete-milestone-btn') as HTMLElement;
@@ -266,7 +274,7 @@ describe('MediaDetail', () => {
 
     it('should open log activity modal', async () => {
         vi.mocked(modals.showLogActivityModal).mockResolvedValue(true);
-        const component = new MediaDetail(container, { ...mockMedia } as any, [], [mockMedia as any], 0, mockCallbacks);
+        const component = new MediaDetail(container, { ...mockMedia } as unknown as Media, [], [mockMedia as unknown as Media], 0, mockCallbacks);
         component.render();
 
         const logBtn = container.querySelector('#btn-new-media-entry') as HTMLElement;
@@ -279,8 +287,9 @@ describe('MediaDetail', () => {
         vi.mocked(modals.customConfirm).mockResolvedValue(true);
         vi.mocked(api.deleteMilestone).mockRejectedValue(new Error('Failed!'));
         const milestones = [{ id: 123, name: 'M1', duration: 10 }];
-        const component = new MediaDetail(container, { ...mockMedia } as any, [], [mockMedia as any], 0, mockCallbacks);
-        (component as any).state.milestones = milestones;
+        const component = new MediaDetail(container, { ...mockMedia } as unknown as Media, [], [mockMedia as unknown as Media], 0, mockCallbacks);
+        // @ts-expect-error - accessing private state
+        component.state.milestones = milestones as unknown as Milestone[];
         component.render();
 
         const deleteBtn = container.querySelector('.delete-milestone-btn') as HTMLElement;
@@ -292,8 +301,9 @@ describe('MediaDetail', () => {
     it('should handle all milestones deletion error', async () => {
         vi.mocked(modals.customConfirm).mockResolvedValue(true);
         vi.mocked(api.clearMilestones).mockRejectedValue(new Error('Failed!'));
-        const component = new MediaDetail(container, { ...mockMedia } as any, [], [mockMedia as any], 0, mockCallbacks);
-        (component as any).state.milestones = [{ id: 1, name: 'M1', duration: 10 }];
+        const component = new MediaDetail(container, { ...mockMedia } as unknown as Media, [], [mockMedia as unknown as Media], 0, mockCallbacks);
+        // @ts-expect-error - accessing private state
+        component.state.milestones = [{ id: 1, name: 'M1', duration: 10 }] as unknown as Milestone[];
         component.render();
 
         const clearBtn = container.querySelector('#btn-clear-milestones') as HTMLElement;

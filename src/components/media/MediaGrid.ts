@@ -12,15 +12,22 @@ interface MediaGridState {
     hideArchived: boolean;
 }
 
+export interface MediaFilters {
+    searchQuery?: string;
+    typeFilter?: string;
+    statusFilter?: string;
+    hideArchived?: boolean;
+}
+
 export class MediaGrid extends Component<MediaGridState> {
     private onMediaClick: (mediaId: number) => void;
     private onDataChange: (jumpToId?: number) => Promise<void>;
-    private onFilterChange?: (filters: any) => void;
+    private onFilterChange?: (filters: MediaFilters) => void;
     private isDestroyed: boolean = false;
     private currentRenderId: number = 0;
     private headerRendered: boolean = false;
 
-    constructor(container: HTMLElement, initialState: MediaGridState, onMediaClick: (mediaId: number) => void, onDataChange: (jumpToId?: number) => Promise<void>, onFilterChange?: (filters: any) => void) {
+    constructor(container: HTMLElement, initialState: MediaGridState, onMediaClick: (mediaId: number) => void, onDataChange: (jumpToId?: number) => Promise<void>, onFilterChange?: (filters: MediaFilters) => void) {
         super(container, initialState);
         this.onMediaClick = onMediaClick;
         this.onDataChange = onDataChange;

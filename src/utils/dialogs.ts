@@ -5,9 +5,11 @@ import { save as tauriSave, open as tauriOpen, type SaveDialogOptions, type Open
  */
 export async function save(options?: SaveDialogOptions): Promise<string | null> {
     // E2E Test Hook
-    if ((window as any).mockSavePath) {
-        console.log("[Dialog] Using mockSavePath:", (window as any).mockSavePath);
-        return (window as any).mockSavePath;
+    const win = window as unknown as Record<string, string | null>;
+    if (win.mockSavePath) {
+        // eslint-disable-next-line no-console
+        console.log("[Dialog] Using mockSavePath:", win.mockSavePath);
+        return win.mockSavePath;
     }
     return tauriSave(options);
 }
@@ -17,9 +19,11 @@ export async function save(options?: SaveDialogOptions): Promise<string | null> 
  */
 export async function open(options?: OpenDialogOptions): Promise<string | string[] | null> {
     // E2E Test Hook
-    if ((window as any).mockOpenPath) {
-        console.log("[Dialog] Using mockOpenPath:", (window as any).mockOpenPath);
-        return (window as any).mockOpenPath;
+    const win = window as unknown as Record<string, string | string[] | null>;
+    if (win.mockOpenPath) {
+        // eslint-disable-next-line no-console
+        console.log("[Dialog] Using mockOpenPath:", win.mockOpenPath);
+        return win.mockOpenPath;
     }
     return tauriOpen(options);
 }

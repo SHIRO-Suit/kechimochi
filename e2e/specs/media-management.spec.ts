@@ -3,7 +3,6 @@ import { verifyActiveView } from '../helpers/navigation.js';
 import { addMedia } from '../helpers/library.js';
 import { logActivity } from '../helpers/dashboard.js';
 import { addExtraField, editExtraField, getExtraField, logActivityFromDetail } from '../helpers/media-detail.js';
-import { submitPrompt } from '../helpers/common.js';
 
 describe('Media Management CUJs', () => {
   before(async () => {

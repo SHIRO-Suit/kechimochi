@@ -199,7 +199,7 @@ export class ActivityCharts extends Component<ActivityChartsState> {
         return { labels, getBucketIndex, validStart, validEnd };
     }
 
-    private createPieChart(canvas: HTMLCanvasElement, colors: string[], timeRange: any) {
+    private createPieChart(canvas: HTMLCanvasElement, colors: string[], timeRange: { labels: string[], getBucketIndex: (dateStr: string) => number, validStart: string, validEnd: string }) {
         const { logs, groupByMode } = this.state;
         const { validStart, validEnd } = timeRange;
         const pieTypeMap = new Map<string, number>();
@@ -239,7 +239,7 @@ export class ActivityCharts extends Component<ActivityChartsState> {
         });
     }
 
-    private createBarChart(canvas: HTMLCanvasElement, colors: string[], timeRange: any) {
+    private createBarChart(canvas: HTMLCanvasElement, colors: string[], timeRange: { labels: string[], getBucketIndex: (dateStr: string) => number, validStart: string, validEnd: string }) {
         const { chartType, timeRangeDays } = this.state;
         const { labels } = timeRange;
 
@@ -282,7 +282,7 @@ export class ActivityCharts extends Component<ActivityChartsState> {
         });
     }
 
-    private prepareBarChartDatasets(timeRange: any, colors: string[]) {
+    private prepareBarChartDatasets(timeRange: { labels: string[], getBucketIndex: (dateStr: string) => number, validStart: string, validEnd: string }, colors: string[]) {
         const { logs, groupByMode, chartType } = this.state;
         const { labels, getBucketIndex } = timeRange;
 

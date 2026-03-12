@@ -2,7 +2,7 @@
  * A simple tagged template literal for creating HTML elements.
  * Usage: html`<div class="foo">${content}</div>`
  */
-export function html(strings: TemplateStringsArray, ...values: any[]): HTMLElement {
+export function html(strings: TemplateStringsArray, ...values: unknown[]): HTMLElement {
     const template = document.createElement('template');
     const placeholders: Map<string, HTMLElement | HTMLElement[]> = new Map();
     let htmlString = '';
@@ -10,7 +10,9 @@ export function html(strings: TemplateStringsArray, ...values: any[]): HTMLEleme
     strings.forEach((str, i) => {
         const val = values[i];
         if (val instanceof HTMLElement || (Array.isArray(val) && val.length > 0 && val[0] instanceof HTMLElement)) {
-            const id = `placeholder-${Math.random().toString(36).substr(2, 9)}`;
+            const array = new Uint32Array(1);
+            crypto.getRandomValues(array);
+            const id = `placeholder-${array[0].toString(36)}`;
             placeholders.set(id, val);
             htmlString += str + `<div id="${id}"></div>`;
         } else {

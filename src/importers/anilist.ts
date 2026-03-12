@@ -1,6 +1,20 @@
 import { MetadataImporter, ScrapedMetadata } from './index';
 import { invoke } from '@tauri-apps/api/core';
 
+interface AnilistMedia {
+    title?: { romaji?: string; english?: string };
+    description?: string;
+    coverImage?: { extraLarge?: string; large?: string };
+    episodes?: number;
+    season?: string;
+    seasonYear?: number;
+    startDate?: { year: number; month?: number; day?: number };
+    endDate?: { year: number; month?: number; day?: number };
+    averageScore?: number;
+    source?: string;
+    genres?: string[];
+}
+
 export class AnilistImporter implements MetadataImporter {
     name = "Anilist";
     supportedContentTypes = ["Anime"];
@@ -28,7 +42,7 @@ export class AnilistImporter implements MetadataImporter {
         };
     }
 
-    private async fetchAnilistMedia(id: number) {
+    private async fetchAnilistMedia(id: number): Promise<AnilistMedia | null> {
         const query = `
         query ($id: Int) {
           Media (id: $id, type: ANIME) {
@@ -49,12 +63,12 @@ export class AnilistImporter implements MetadataImporter {
             headers: { "Content-Type": "application/json", "Accept": "application/json" }
         });
 
-        const json = JSON.parse(responseText);
+        const json = JSON.parse(responseText) as { data?: { Media?: AnilistMedia }, errors?: { message: string }[] };
         if (json.errors) throw new Error("Anilist API returned an error: " + json.errors[0]?.message);
-        return json.data?.Media;
+        return json.data?.Media || null;
     }
 
-    private mapExtraData(m: any, url: string): Record<string, string> {
+    private mapExtraData(m: AnilistMedia, url: string): Record<string, string> {
         const extras: Record<string, string> = { "Anilist Source": url };
         
         if (m.episodes) extras["Episodes"] = m.episodes.toString();
@@ -73,7 +87,7 @@ export class AnilistImporter implements MetadataImporter {
                 .replace(/\w\S*/g, (txt: string) => txt.charAt(0).toUpperCase() + txt.substring(1).toLowerCase());
         }
 
-        if (m.genres?.length > 0) extras["Genres"] = m.genres.join(", ");
+        if (m.genres && m.genres.length > 0) extras["Genres"] = m.genres.join(", ");
 
         return extras;
     }

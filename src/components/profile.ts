@@ -385,7 +385,9 @@ export class ProfileView extends Component<ProfileState> {
                 await this.loadData();
                 this.render();
                 await customAlert("Success", "Reading report card calculated successfully!");
-            } catch (e) {
+            } catch (error) {
+                // eslint-disable-next-line no-console
+                console.error("Failed to calculate report card:", error);
                 await customAlert("Error", "Failed to calculate report card.");
             } finally {
                 btn.disabled = false;

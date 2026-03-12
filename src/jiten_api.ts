@@ -50,7 +50,7 @@ export async function searchJiten(title: string, contentType: string): Promise<J
     if (results.length > 0) return results;
 
     // 2. Remove punctuation and symbols
-    const noPunctTitle = title.replace(/[!！?？.。,:：;；~～()（）\[\]［］{}｛｝]/g, ' ').replace(/\s+/g, ' ').trim();
+    const noPunctTitle = title.replace(/[!！?？.。,:：;；~～()（）[\]［］{}｛｝]/g, ' ').replace(/\s+/g, ' ').trim();
     if (noPunctTitle && noPunctTitle !== title) {
         results = await searchWithFallback(noPunctTitle, mediaType);
         if (results.length > 0) return results;
@@ -105,12 +105,24 @@ async function performSearch(query: string, mediaType: number): Promise<JitenRes
         const data = JSON.parse(jsonStr);
         return (data?.data || []).map(mapToJitenResult);
     } catch (e) {
-        console.error("Jiten search failed", e);
+        // eslint-disable-next-line no-console
+        console.error("Jiten API search failed", e);
+        return [];
     }
-    return [];
 }
 
-function mapToJitenResult(deck: any): JitenResult {
+interface JitenDeck {
+    deckId: number;
+    originalTitle: string;
+    romajiTitle: string;
+    englishTitle: string;
+    mediaType: number;
+    coverName: string | null;
+    parentDeckId: number | null;
+    childrenDeckCount?: number;
+}
+
+function mapToJitenResult(deck: JitenDeck): JitenResult {
     return {
         deckId: deck.deckId,
         originalTitle: deck.originalTitle,
@@ -132,9 +144,10 @@ export async function getJitenDeckChildren(deckId: number): Promise<JitenResult[
         const json = JSON.parse(jsonStr);
         return (json.data?.subDecks || []).map(mapToJitenResult);
     } catch (e) {
-        console.error("Jiten get children failed", e);
+        // eslint-disable-next-line no-console
+        console.error("Jiten API Deck Children fetch failed", e);
+        return [];
     }
-    return [];
 }
 
 export function getJitenCoverUrl(deckId: number, parentDeckId: number | null): string {

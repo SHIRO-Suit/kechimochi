@@ -10,13 +10,13 @@ vi.mock('@tauri-apps/plugin-dialog', () => ({
 describe('utils/dialogs.ts', () => {
     beforeEach(() => {
         vi.clearAllMocks();
-        delete (window as any).mockSavePath;
-        delete (window as any).mockOpenPath;
+        delete (window as unknown as { mockSavePath?: string }).mockSavePath;
+        delete (window as unknown as { mockOpenPath?: string }).mockOpenPath;
     });
 
     it('save should return mock path if window.mockSavePath exists', async () => {
         const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-        (window as any).mockSavePath = '/mock/save/path';
+        (window as unknown as { mockSavePath: string }).mockSavePath = '/mock/save/path';
         const result = await save();
         expect(result).toBe('/mock/save/path');
         expect(tauriSave).not.toHaveBeenCalled();
@@ -24,7 +24,7 @@ describe('utils/dialogs.ts', () => {
     });
 
     it('save should call tauriSave if no mock exists', async () => {
-        vi.mocked(tauriSave).mockResolvedValue('/tauri/path' as any);
+        vi.mocked(tauriSave).mockResolvedValue('/tauri/path');
         const result = await save({ title: 'T' });
         expect(tauriSave).toHaveBeenCalledWith({ title: 'T' });
         expect(result).toBe('/tauri/path');
@@ -32,7 +32,7 @@ describe('utils/dialogs.ts', () => {
 
     it('open should return mock path if window.mockOpenPath exists', async () => {
         const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
-        (window as any).mockOpenPath = '/mock/open/path';
+        (window as unknown as { mockOpenPath: string }).mockOpenPath = '/mock/open/path';
         const result = await open();
         expect(result).toBe('/mock/open/path');
         expect(tauriOpen).not.toHaveBeenCalled();
@@ -40,7 +40,7 @@ describe('utils/dialogs.ts', () => {
     });
 
     it('open should call tauriOpen if no mock exists', async () => {
-        vi.mocked(tauriOpen).mockResolvedValue('/tauri/open/path' as any);
+        vi.mocked(tauriOpen).mockResolvedValue('/tauri/open/path');
         const result = await open({ title: 'T' });
         expect(tauriOpen).toHaveBeenCalledWith({ title: 'T' });
         expect(result).toBe('/tauri/open/path');

@@ -40,6 +40,7 @@ export class MediaItem extends Component<MediaItemState> {
             MediaItem.imageCache.set(cover_image, src);
             this.setState({ imgSrc: src });
         } catch (e) {
+            // eslint-disable-next-line no-console
             console.error("Failed to load image", e);
         }
     }
@@ -68,12 +69,13 @@ export class MediaItem extends Component<MediaItemState> {
 
         this.clear();
         
+        const placeholderText = media.cover_image ? 'Loading...' : 'No Image';
         const content = imgSrc 
             ? html`<img src="${imgSrc}" style="width: 100%; height: 100%; object-fit: cover; display: block;" alt="${media.title}" />`
             : html`
                 <div class="image-placeholder" style="flex: 1; display: flex; flex-direction: column; padding: 1.2rem 1rem; color: var(--text-secondary); text-align: center; justify-content: space-between;">
                     <div class="grid-item-title" style="font-size: 0.9rem; font-weight: 600; color: var(--text-primary); display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; line-height: 1.3;">${media.title}</div>
-                    <div style="font-size: 0.75rem; opacity: 0.6; text-transform: uppercase; letter-spacing: 1px;">${media.cover_image ? 'Loading...' : 'No Image'}</div>
+                    <div style="font-size: 0.75rem; opacity: 0.6; text-transform: uppercase; letter-spacing: 1px;">${placeholderText}</div>
                 </div>
             `;
 

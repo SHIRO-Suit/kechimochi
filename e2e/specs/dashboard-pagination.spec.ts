@@ -27,6 +27,7 @@ describe('Dashboard Pagination E2E', () => {
 
     async function seedLogsViaCsv(count: number) {
         const dataDir = process.env.KECHIMOCHI_DATA_DIR || os.tmpdir();
+        // eslint-disable-next-line sonarjs/pseudo-random
         const csvPath = path.join(dataDir, `seed_${Math.random().toString(36).substring(7)}.csv`);
         const logs = [
             'Date,Log Name,Media Type,Duration,Language',
@@ -36,14 +37,20 @@ describe('Dashboard Pagination E2E', () => {
         fs.writeFileSync(csvPath, logs);
 
         await browser.execute(async (path) => {
-            // @ts-ignore
+            // @ts-expect-error - reaching into Tauri internals for E2E
             await window.__TAURI_INTERNALS__.invoke('import_csv', { filePath: path });
         }, csvPath);
 
         await browser.refresh();
         await waitForAppReady();
 
-        try { fs.unlinkSync(csvPath); } catch (err: any) { }
+        try { 
+            fs.unlinkSync(csvPath); 
+        } catch (err: unknown) { 
+            if ((err as Error).message.includes('EBUSY')) {
+                // ignore
+            }
+        }
     }
 
     it('should NOT show pagination with 15 or fewer activities', async () => {

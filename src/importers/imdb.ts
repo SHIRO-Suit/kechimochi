@@ -48,7 +48,7 @@ export class ImdbImporter implements MetadataImporter {
 
     private extractFromJsonLd(doc: Document, metadata: Partial<ScrapedMetadata>, extraData: Record<string, string>) {
         const jsonLdScripts = doc.querySelectorAll('script[type="application/ld+json"]');
-        let movieData: any = null;
+        let movieData: Record<string, unknown> | null = null;
         
         for (const script of Array.from(jsonLdScripts)) {
             try {
@@ -61,30 +61,30 @@ export class ImdbImporter implements MetadataImporter {
         }
 
         if (movieData) {
-            metadata.description = movieData.description;
-            metadata.coverImageUrl = movieData.image;
+            metadata.description = movieData.description as string;
+            metadata.coverImageUrl = movieData.image as string;
             this.parseJsonLdFields(movieData, extraData);
         }
     }
 
-    private parseJsonLdFields(movieData: any, extraData: Record<string, string>) {
+    private parseJsonLdFields(movieData: Record<string, unknown>, extraData: Record<string, string>) {
         if (movieData.director) {
             const directors = Array.isArray(movieData.director) ? movieData.director : [movieData.director];
-            extraData["Director"] = directors.map((d: any) => d.name).filter(Boolean).join(", ");
+            extraData["Director"] = directors.map((d: Record<string, unknown>) => d.name).filter(Boolean).join(", ");
         }
         if (movieData.genre) {
             const genres = Array.isArray(movieData.genre) ? movieData.genre : [movieData.genre];
             extraData["Genres"] = genres.join(", ");
         }
         if (movieData.duration) {
-            extraData["Total Runtime"] = this.parseISO8601Duration(movieData.duration);
+            extraData["Total Runtime"] = this.parseISO8601Duration(movieData.duration as string);
         }
         if (movieData.datePublished) {
-            const yearMatch = movieData.datePublished.match(/^\d{4}/);
+            const yearMatch = (movieData.datePublished as string).match(/^\d{4}/);
             if (yearMatch) extraData["Release Year"] = yearMatch[0];
         }
-        if (movieData.aggregateRating?.ratingValue) {
-            extraData["IMDb Rating"] = movieData.aggregateRating.ratingValue.toString();
+        if ((movieData.aggregateRating as Record<string, unknown>)?.ratingValue) {
+            extraData["IMDb Rating"] = (movieData.aggregateRating as Record<string, unknown>).ratingValue!.toString();
         }
     }
 

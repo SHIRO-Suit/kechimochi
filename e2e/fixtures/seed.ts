@@ -186,6 +186,7 @@ function createPlaceholderImage(filepath: string) {
   fs.writeFileSync(filepath, png);
 }
 
+/* eslint-disable no-console */
 // ---------- Main ----------
 function main() {
   console.log('Seeding e2e fixture databases...');
@@ -284,5 +285,6 @@ function main() {
   console.log(`  ${USER_DB_PATH}`);
   console.log(`  ${COVERS_DIR}/`);
 }
+/* eslint-enable no-console */
 
 main();

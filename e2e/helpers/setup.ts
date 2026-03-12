@@ -56,13 +56,14 @@ export function cleanupTestDir(testDir: string): void {
  */
 export async function waitForAppReady(timeout = 30000): Promise<void> {
   const MOCK_DATE = '2024-03-31';
+  // eslint-disable-next-line no-console
   console.log(`[e2e] Ensuring app is ready and date is mocked to ${MOCK_DATE}...`);
 
   // 1. First, wait for the window to have a valid origin and the DOM to be somewhat ready.
   // We check document.readyState to ensure we aren't on about:blank or a transitional state.
-  await (browser as any).waitUntil(
+  await browser.waitUntil(
     async () => {
-      const readyState = await (browser as any).execute(() => document.readyState).catch(() => '');
+      const readyState = await browser.execute(() => document.readyState).catch(() => '');
       if (readyState !== 'complete') return false;
       
       const el = await $('#app');
@@ -74,6 +75,7 @@ export async function waitForAppReady(timeout = 30000): Promise<void> {
       interval: 1000,
     }
   ).catch(() => {
+    // eslint-disable-next-line no-console
     console.warn('[e2e] Initial readyState/app check timed out, proceeding anyway...');
   });
 
@@ -83,35 +85,39 @@ export async function waitForAppReady(timeout = 30000): Promise<void> {
   let attempts = 0;
   while (!setResolved && attempts < 10) {
     try {
-      await (browser as any).execute((date: string) => {
+      await browser.execute((date: string) => {
         sessionStorage.setItem('kechimochi_mock_date', date);
       }, MOCK_DATE);
       setResolved = true;
-    } catch (e: any) {
-      if (e.message.includes('insecure')) {
+    } catch (e: unknown) {
+      if ((e as Error).message.includes('insecure')) {
         attempts++;
+        // eslint-disable-next-line no-console
         console.warn(`[e2e] sessionStorage access insecure (attempt ${attempts}), retrying in 1s...`);
         await browser.pause(1000);
       } else {
-        console.error('[e2e] Non-security error setting mock date:', e.message);
+        // eslint-disable-next-line no-console
+        console.error('[e2e] Non-security error setting mock date:', (e as Error).message);
         break; // Fatal error
       }
     }
   }
 
   // 3. Refresh to apply the mock date
+  // eslint-disable-next-line no-console
   console.log(`[e2e] Refreshing to apply mock date...`);
-  await (browser as any).refresh();
+  await browser.refresh();
 
   // 4. Poll for final app readiness (dashboard view visible)
   let retries = 0;
-  await (browser as any).waitUntil(
+  await browser.waitUntil(
     async () => {
       retries++;
       const el = await $('[data-view="dashboard"]');
       const displayed = await el.isDisplayed().catch(() => false);
 
       if (retries % 5 === 0) {
+        // eslint-disable-next-line no-console
         console.log(`[e2e] Final app ready check #${retries}...`);
       }
 
@@ -124,5 +130,6 @@ export async function waitForAppReady(timeout = 30000): Promise<void> {
     }
   );
 
+  // eslint-disable-next-line no-console
   console.log('[e2e] App is ready and date is mocked');
 }

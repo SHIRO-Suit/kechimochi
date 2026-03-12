@@ -29,7 +29,7 @@ export class VndbImporter implements MetadataImporter {
 
     private removeBbcode(text: string): string {
         if (!text) return "";
-        let cleaned = text.replace(/\[url(?:=.*?)?\](.*?)\[\/url\]/gi, '$1');
+        let cleaned = text.replace(/\[url(?:=[^\]]*?)?\]([^]*?)\[\/url\]/gi, '$1');
         cleaned = cleaned.replace(/\[\/?(b|i|u|s|spoiler|size|color|quote|list|pre|code|raw|\*)\]/gi, '');
         return cleaned.trim();
     }
@@ -66,7 +66,7 @@ export class VndbImporter implements MetadataImporter {
             method: "POST",
             body: JSON.stringify({ filters: ["id", "=", vnId], fields: "id, description, image.url, platforms" })
         });
-        const data = JSON.parse(resStr);
+        const data = JSON.parse(resStr) as { results: VndbVn[] };
         if (!data.results?.[0]) throw new Error("VN not found on VNDB.");
         return data.results[0];
     }
@@ -82,7 +82,7 @@ export class VndbImporter implements MetadataImporter {
             })
         });
 
-        const data = JSON.parse(resStr);
+        const data = JSON.parse(resStr) as { results: VndbRelease[] };
         const firstRel: VndbRelease | undefined = data.results?.[0];
 
         let developer = "Unknown", publisher = "Unknown", releaseDate = "Unknown";

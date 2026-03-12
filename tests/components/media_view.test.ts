@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { MediaView } from '../../src/components/media_view';
 import * as api from '../../src/api';
+import { Media } from '../../src/api';
 import { MediaGrid } from '../../src/components/media/MediaGrid';
 import { MediaDetail } from '../../src/components/media/MediaDetail';
 
@@ -40,7 +41,7 @@ describe('MediaView', () => {
 
     it('should load data and render grid by default', async () => {
         const mockMedia = [{ id: 1, title: 'Test' }];
-        vi.mocked(api.getAllMedia).mockResolvedValue(mockMedia as any);
+        vi.mocked(api.getAllMedia).mockResolvedValue(mockMedia as unknown as Media[]);
         vi.mocked(api.getSetting).mockResolvedValue('false');
 
         const component = new MediaView(container);
@@ -48,12 +49,13 @@ describe('MediaView', () => {
 
         expect(api.getAllMedia).toHaveBeenCalled();
         expect(MediaGrid).toHaveBeenCalled();
-        expect((component as any).state.viewMode).toBe('grid');
+        // @ts-expect-error - accessing private state
+        expect(component.state.viewMode).toBe('grid');
     });
 
     it('should switch to detail view when a media item is clicked in the grid', async () => {
         const mockMedia = [{ id: 1, title: 'T1' }, { id: 2, title: 'T2' }];
-        vi.mocked(api.getAllMedia).mockResolvedValue(mockMedia as any);
+        vi.mocked(api.getAllMedia).mockResolvedValue(mockMedia as unknown as Media[]);
         vi.mocked(api.getLogsForMedia).mockResolvedValue([]);
 
         const component = new MediaView(container);
@@ -65,29 +67,36 @@ describe('MediaView', () => {
 
         await component.render();
 
-        expect((component as any).state.viewMode).toBe('detail');
-        expect((component as any).state.currentIndex).toBe(1);
+        // @ts-expect-error - accessing private state
+        expect(component.state.viewMode).toBe('detail');
+        // @ts-expect-error - accessing private state
+        expect(component.state.currentIndex).toBe(1);
         expect(MediaDetail).toHaveBeenCalled();
     });
 
     it('should handle keyboard navigation in detail view', async () => {
         const mockMedia = [{ id: 1, title: 'T1' }, { id: 2, title: 'T2' }];
-        vi.mocked(api.getAllMedia).mockResolvedValue(mockMedia as any);
+        vi.mocked(api.getAllMedia).mockResolvedValue(mockMedia as unknown as Media[]);
         vi.mocked(api.getLogsForMedia).mockResolvedValue([]);
 
         const component = new MediaView(container);
-        (component as any).state.viewMode = 'detail';
-        (component as any).state.isInitialized = true;
-        (component as any).state.currentMediaList = mockMedia as any;
+        // @ts-expect-error - accessing private state
+        component.state.viewMode = 'detail';
+        // @ts-expect-error - accessing private state
+        component.state.isInitialized = true;
+        // @ts-expect-error - accessing private state
+        component.state.currentMediaList = mockMedia as unknown as Media[];
         
         await component.render();
 
         // We need the root element to be present for the listener to trigger
         window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
-        expect((component as any).state.currentIndex).toBe(1);
+        // @ts-expect-error - accessing private state
+        expect(component.state.currentIndex).toBe(1);
 
         window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-        expect((component as any).state.viewMode).toBe('grid');
+        // @ts-expect-error - accessing private state
+        expect(component.state.viewMode).toBe('grid');
     });
 
     it('should handle grid filter changes', async () => {
@@ -103,16 +112,19 @@ describe('MediaView', () => {
 
     it('should fall back to grid if media not found in detail view', async () => {
         const component = new MediaView(container);
-        (component as any).state.viewMode = 'detail';
-        (component as any).state.currentMediaList = [];
+        // @ts-expect-error - accessing private state
+        component.state.viewMode = 'detail';
+        // @ts-expect-error - accessing private state
+        component.state.currentMediaList = [];
         
         await component.render();
-        expect((component as any).state.viewMode).toBe('grid');
+        // @ts-expect-error - accessing private state
+        expect(component.state.viewMode).toBe('grid');
     });
 
     it('should handle navigation and jumping to media', async () => {
         const mockMedia = [{ id: 10, title: 'T1' }, { id: 20, title: 'T2' }];
-        vi.mocked(api.getAllMedia).mockResolvedValue(mockMedia as any);
+        vi.mocked(api.getAllMedia).mockResolvedValue(mockMedia as unknown as Media[]);
         vi.mocked(api.getLogsForMedia).mockResolvedValue([]);
         
         const component = new MediaView(container);
@@ -124,31 +136,38 @@ describe('MediaView', () => {
         expect(api.getAllMedia).toHaveBeenCalledTimes(2);
 
         // 2. Render Detail (starts at index 1 because of jump to 20)
-        await (component as any).renderDetail(container);
+        // @ts-expect-error - calling private method
+        await component.renderDetail(container);
         const detailCallbacks = vi.mocked(MediaDetail).mock.calls[0][5];
 
         // 3. Detail callbacks
         detailCallbacks.onNext(); // 1 -> 0
-        await vi.waitFor(() => expect((component as any).state.currentIndex).toEqual(0));
+        // @ts-expect-error - accessing private state
+        await vi.waitFor(() => expect(component.state.currentIndex).toEqual(0));
 
         detailCallbacks.onPrev(); // 0 -> 1
-        await vi.waitFor(() => expect((component as any).state.currentIndex).toEqual(1));
+        // @ts-expect-error - accessing private state
+        await vi.waitFor(() => expect(component.state.currentIndex).toEqual(1));
 
         detailCallbacks.onNavigate(0); // Jump to index 0
-        await vi.waitFor(() => expect((component as any).state.currentIndex).toEqual(0));
+        // @ts-expect-error - accessing private state
+        await vi.waitFor(() => expect(component.state.currentIndex).toEqual(0));
 
         detailCallbacks.onBack();
-        await vi.waitFor(() => expect((component as any).state.viewMode).toEqual('grid'));
+        // @ts-expect-error - accessing private state
+        await vi.waitFor(() => expect(component.state.viewMode).toEqual('grid'));
 
         // 4. Delete callback
-        (component as any).state.viewMode = 'detail';
+        // @ts-expect-error - accessing private state
+        component.state.viewMode = 'detail';
         detailCallbacks.onDelete();
-        await vi.waitFor(() => expect((component as any).state.viewMode).toEqual('grid'));
+        // @ts-expect-error - accessing private state
+        await vi.waitFor(() => expect(component.state.viewMode).toEqual('grid'));
     });
 
     it('should handle keyboard navigation', async () => {
         const mockMedia = [{ id: 10, title: 'T1' }, { id: 20, title: 'T2' }];
-        vi.mocked(api.getAllMedia).mockResolvedValue(mockMedia as any);
+        vi.mocked(api.getAllMedia).mockResolvedValue(mockMedia as unknown as Media[]);
         vi.mocked(api.getLogsForMedia).mockResolvedValue([]);
         
         const component = new MediaView(container);
@@ -156,17 +175,23 @@ describe('MediaView', () => {
 
         // Must be in detail view and have media root element
         container.innerHTML = '<div id="media-root"></div>';
-        (component as any).state.viewMode = 'detail';
-        (component as any).state.currentMediaList = mockMedia;
-        (component as any).state.currentIndex = 0;
+        // @ts-expect-error - accessing private state
+        component.state.viewMode = 'detail';
+        // @ts-expect-error - accessing private state
+        component.state.currentMediaList = mockMedia as unknown as Media[];
+        // @ts-expect-error - accessing private state
+        component.state.currentIndex = 0;
 
         window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
-        await vi.waitFor(() => expect((component as any).state.currentIndex).toEqual(1));
+        // @ts-expect-error - accessing private state
+        await vi.waitFor(() => expect(component.state.currentIndex).toEqual(1));
 
         window.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
-        await vi.waitFor(() => expect((component as any).state.currentIndex).toEqual(0));
+        // @ts-expect-error - accessing private state
+        await vi.waitFor(() => expect(component.state.currentIndex).toEqual(0));
 
         window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-        await vi.waitFor(() => expect((component as any).state.viewMode).toEqual('grid'));
+        // @ts-expect-error - accessing private state
+        await vi.waitFor(() => expect(component.state.viewMode).toEqual('grid'));
     });
 });

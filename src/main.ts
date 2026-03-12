@@ -19,21 +19,23 @@ try {
         localStorage.removeItem('kechimochi_mock_date');
     }
 } catch (e) {
+    // eslint-disable-next-line no-console
     console.warn('[kechimochi] Failed to access storage for mock date:', e);
 }
 
 if (mockDateStr) {
+    // eslint-disable-next-line no-console
     console.log(`[kechimochi] Mocking system date to: ${mockDateStr}`);
     const originalDate = Date;
     const frozenTimestamp = new Date(mockDateStr + "T12:00:00Z").getTime();
 
-    // @ts-ignore
+    // @ts-expect-error - overriding global Date for testing
     globalThis.Date = class extends originalDate {
-        constructor(...args: any[]) {
+        constructor(...args: unknown[]) {
             if (args.length === 0) {
                 super(frozenTimestamp);
             } else {
-                // @ts-ignore
+                // @ts-expect-error - passing args to original Date
                 super(...args);
             }
         }
@@ -45,8 +47,10 @@ if (mockDateStr) {
 
 const appWindow = getCurrentWindow();
 
+type ViewType = 'dashboard' | 'media' | 'profile';
+
 class App {
-    private currentView: 'dashboard' | 'media' | 'profile' = 'dashboard';
+    private currentView: ViewType = 'dashboard';
     private currentProfile: string = localStorage.getItem('kechimochi_profile') || '';
 
     private dashboard: Dashboard;
@@ -81,7 +85,7 @@ class App {
         // Always show dev build label for now as requested
         if (this.devBuildBadgeEl) {
             this.devBuildBadgeEl.style.display = 'inline-flex';
-            // @ts-ignore
+            // @ts-expect-error - VITE_APP_VERSION is injected by Vite
             const appVersion = import.meta.env.VITE_APP_VERSION;
             if (appVersion) {
                 this.devBuildBadgeEl.textContent = `Dev Build ${appVersion}`;
@@ -108,7 +112,7 @@ class App {
         this.navLinks.forEach(link => {
             link.addEventListener('click', (e) => {
                 const target = e.target as HTMLElement;
-                const view = target.getAttribute('data-view') as any;
+                const view = target.getAttribute('data-view') as ViewType;
                 if (view) this.switchView(view);
             });
         });
@@ -216,7 +220,7 @@ class App {
         document.body.dataset.theme = theme;
     }
 
-    private async switchView(view: 'dashboard' | 'media' | 'profile') {
+    private async switchView(view: ViewType) {
         this.currentView = view;
 
         this.navLinks.forEach(n => {
@@ -240,5 +244,6 @@ class App {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+    // eslint-disable-next-line sonarjs/constructor-for-side-effects
     new App();
 });

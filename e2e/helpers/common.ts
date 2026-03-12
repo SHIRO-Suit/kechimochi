@@ -21,6 +21,7 @@ export async function assertTextVisible(text: string): Promise<void> {
 
   try {
     // Force specific imagesFolder for OCR
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await (browser as any).ocrWaitForTextDisplayed({
       text,
       timeout: 5000,
@@ -40,7 +41,7 @@ export async function assertTextVisible(text: string): Promise<void> {
 export async function takeAndCompareScreenshot(tag: string): Promise<void> {
   const stageDir = process.env.SPEC_STAGE_DIR;
 
-  const options: any = {};
+  const options: Record<string, string> = {};
   if (stageDir) {
     const actualFolder = path.join(stageDir, 'visual', 'actual');
     const diffFolder = path.join(stageDir, 'visual', 'diff');
@@ -139,7 +140,7 @@ export async function confirmAction(ok: boolean = true): Promise<void> {
  */
 export async function setDialogMockPath(filePath: string): Promise<void> {
     await browser.execute((p) => {
-        (window as any).mockSavePath = p;
-        (window as any).mockOpenPath = p;
+        (window as unknown as { mockSavePath: string, mockOpenPath: string }).mockSavePath = p;
+        (window as unknown as { mockSavePath: string, mockOpenPath: string }).mockOpenPath = p;
     }, filePath);
 }

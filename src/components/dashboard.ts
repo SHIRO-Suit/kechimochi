@@ -1,6 +1,6 @@
 import { Component } from '../core/component';
 import { html } from '../core/html';
-import { getLogs, getHeatmap, getAllMedia, ActivitySummary, DailyHeatmap, deleteLog } from '../api';
+import { getLogs, getHeatmap, getAllMedia, ActivitySummary, DailyHeatmap, deleteLog, Media } from '../api';
 import { customConfirm } from '../modals';
 import { StatsCard } from './dashboard/StatsCard';
 import { HeatmapView } from './dashboard/HeatmapView';
@@ -11,7 +11,7 @@ import { formatLoggedDuration } from '../utils/time';
 interface DashboardState {
     logs: ActivitySummary[];
     heatmapData: DailyHeatmap[];
-    mediaList: any[];
+    mediaList: Media[];
     currentHeatmapYear: number;
     chartParams: {
         timeRangeDays: number;
@@ -65,8 +65,9 @@ export class Dashboard extends Component<DashboardState> {
                 getAllMedia()
             ]);
             this.setState({ logs, heatmapData, mediaList, isInitialized: true });
-        } catch (e) {
-            console.error("Dashboard failed to load data", e);
+        } catch (error) {
+            // eslint-disable-next-line no-console
+            console.error("Failed to load dashboard data:", error);
         } finally {
             this.isRefreshing = false;
         }

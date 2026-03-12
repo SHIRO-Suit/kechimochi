@@ -1,7 +1,7 @@
 import { Component } from '../core/component';
 import { html } from '../core/html';
 import { Media, getAllMedia, getLogsForMedia, getSetting, setSetting } from '../api';
-import { MediaGrid } from './media/MediaGrid';
+import { MediaGrid, MediaFilters } from './media/MediaGrid';
 import { MediaDetail } from './media/MediaDetail';
 
 interface MediaViewState {
@@ -121,7 +121,9 @@ export class MediaView extends Component<MediaViewState> {
                 viewMode: jumpToId !== undefined ? 'detail' : this.state.viewMode
             });
         } catch (e) {
-            console.error("Failed to load media data", e);
+            // eslint-disable-next-line no-console
+            console.error("Failed to load media view content", e);
+        } finally {
             this.setState({ isLoading: false });
         }
     }
@@ -176,9 +178,9 @@ export class MediaView extends Component<MediaViewState> {
             },
             (filters) => {
                 const oldHideArchived = this.state.gridFilters.hideArchived;
-                this.state.gridFilters = { ...this.state.gridFilters, ...filters };
-                if (oldHideArchived !== filters.hideArchived) {
-                    setSetting('grid_hide_archived', filters.hideArchived.toString());
+                this.state.gridFilters = { ...this.state.gridFilters, ...filters as MediaFilters };
+                if (filters.hideArchived !== undefined && oldHideArchived !== filters.hideArchived) {
+                    void setSetting('grid_hide_archived', filters.hideArchived.toString());
                 }
             }
         );

@@ -105,6 +105,7 @@ async function findMediaItemInternal(title: string, timeout = 5000) {
         for (const it of allItems) {
             titles.push(await it.getAttribute('data-title'));
         }
+        // eslint-disable-next-line no-console
         console.log(`[E2E] Media item "${title}" not found. Current grid items: [${titles.join(', ')}]`);
         return null;
     }

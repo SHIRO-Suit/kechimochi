@@ -1,17 +1,10 @@
 import { MediaConflict, MediaCsvRow, Media } from '../api';
 import { searchJiten, getJitenCoverUrl, getJitenDeckUrl, getJitenDeckChildren, JitenResult, getJitenMediaLabel } from '../jiten_api';
-import { customAlert } from './base';
+import { customAlert, createOverlay } from './base';
 
 export async function showAddMediaModal(): Promise<{title: string, type: string, contentType: string} | null> {
     return new Promise((resolve) => {
-        (window as any).__modalCounter = ((window as any).__modalCounter || 0) + 1;
-        const overlay = document.createElement('div');
-        overlay.className = 'modal-overlay';
-        overlay.setAttribute('data-overlay-id', (window as any).__modalCounter.toString());
-        
-        document.body.appendChild(overlay);
-        void overlay.offsetWidth;
-        overlay.classList.add('active');
+        const { overlay, cleanup } = createOverlay();
         
         overlay.innerHTML = `
             <div class="modal-content">
@@ -44,12 +37,6 @@ export async function showAddMediaModal(): Promise<{title: string, type: string,
             </div>
         `;
         
-        const cleanup = () => {
-             overlay.classList.remove('active');
-             overlay.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
-             setTimeout(() => overlay.remove(), 300);
-        };
-        
         const titleInput = overlay.querySelector('#add-media-title') as HTMLInputElement;
         const typeInput = overlay.querySelector('#add-media-type') as HTMLSelectElement;
         const contentInput = overlay.querySelector('#add-media-content-type') as HTMLSelectElement;
@@ -79,22 +66,24 @@ export async function showAddMediaModal(): Promise<{title: string, type: string,
     });
 }
 
-export async function showImportMergeModal(scraped: import('../importers/index').ScrapedMetadata, currentData: { description?: string, coverImageUrl?: string, extraData: Record<string, string>, imagesIdentical?: boolean }): Promise<{
+interface JitenImportResult {
     description?: string;
     coverImageUrl?: string;
     extraData: Record<string, string>;
-} | null> {
+}
+
+export async function showImportMergeModal(scraped: import('../importers/index').ScrapedMetadata, currentData: { description?: string, coverImageUrl?: string, extraData: Record<string, string>, imagesIdentical?: boolean }): Promise<JitenImportResult | null> {
     const extraFields = buildExtraFieldsHtml(scraped, currentData);
     const descField = buildDescriptionHtml(scraped, currentData);
     const coverField = buildCoverHtml(scraped, currentData);
 
     if (!extraFields.count && !descField.show && !coverField.show) {
-        customAlert("Notice", "No new metadata found, skipping import.");
+        await customAlert("Notice", "No new metadata found, skipping import.");
         return null;
     }
 
     return new Promise((resolve) => {
-        const overlay = createModalOverlay();
+        const { overlay, cleanup } = createOverlay();
         overlay.innerHTML = `
             <div class="modal-content" style="max-width: 600px; width: 90vw; max-height: 90vh; display: flex; flex-direction: column;">
                 <h3>Import Metadata</h3>
@@ -108,11 +97,6 @@ export async function showImportMergeModal(scraped: import('../importers/index')
                 </div>
             </div>`;
         
-        const cleanup = () => {
-             overlay.classList.remove('active');
-             setTimeout(() => overlay.remove(), 300);
-        };
-        
         overlay.querySelector('#import-cancel')!.addEventListener('click', () => { cleanup(); resolve(null); });
         overlay.querySelector('#import-confirm')!.addEventListener('click', () => {
             const result = processImportMerge(overlay, scraped);
@@ -122,18 +106,7 @@ export async function showImportMergeModal(scraped: import('../importers/index')
     });
 }
 
-function createModalOverlay(): HTMLElement {
-    const counter = (window as any).__modalCounter = ((window as any).__modalCounter || 0) + 1;
-    const overlay = document.createElement('div');
-    overlay.className = 'modal-overlay';
-    overlay.setAttribute('data-overlay-id', counter.toString());
-    document.body.appendChild(overlay);
-    void overlay.offsetWidth;
-    overlay.classList.add('active');
-    return overlay;
-}
-
-function buildExtraFieldsHtml(scraped: any, currentData: any) {
+function buildExtraFieldsHtml(scraped: import('../importers/index').ScrapedMetadata, currentData: { extraData: Record<string, string> }) {
     let html = '';
     let count = 0;
     for (const [key, val] of Object.entries(scraped.extraData)) {
@@ -159,8 +132,8 @@ function buildExtraFieldsHtml(scraped: any, currentData: any) {
     return { html, count };
 }
 
-function buildDescriptionHtml(scraped: any, currentData: any) {
-    const show = scraped.description && scraped.description !== currentData.description;
+function buildDescriptionHtml(scraped: import('../importers/index').ScrapedMetadata, currentData: { description?: string }) {
+    const show = !!(scraped.description && scraped.description !== currentData.description);
     if (!show) return { html: '', show: false };
     const isOverwrite = !!currentData.description;
     const overwriteText = isOverwrite ? `<span style="color: var(--accent-red); font-size: 0.7rem; margin-left: 0.5rem;">(Overwrites existing)</span>` : `<span style="color: var(--accent-green); font-size: 0.7rem; margin-left: 0.5rem;">(New field)</span>`;
@@ -182,8 +155,8 @@ function buildDescriptionHtml(scraped: any, currentData: any) {
     };
 }
 
-function buildCoverHtml(scraped: any, currentData: any) {
-    const show = scraped.coverImageUrl && !currentData.imagesIdentical;
+function buildCoverHtml(scraped: import('../importers/index').ScrapedMetadata, currentData: { coverImageUrl?: string, imagesIdentical?: boolean }) {
+    const show = !!(scraped.coverImageUrl && !currentData.imagesIdentical);
     if (!show) return { html: '', show: false };
     const isOverwrite = !!currentData.coverImageUrl;
     const overwriteText = isOverwrite ? `<span style="color: var(--accent-red); font-size: 0.7rem; margin-left: 0.5rem;">(Overwrites existing)</span>` : `<span style="color: var(--accent-green); font-size: 0.7rem; margin-left: 0.5rem;">(New field)</span>`;
@@ -212,8 +185,8 @@ function buildCoverHtml(scraped: any, currentData: any) {
     };
 }
 
-function processImportMerge(overlay: HTMLElement, scraped: any) {
-    const result: { description?: string, coverImageUrl?: string, extraData: Record<string, string> } = { extraData: {} };
+function processImportMerge(overlay: HTMLElement, scraped: import('../importers/index').ScrapedMetadata) {
+    const result: JitenImportResult = { extraData: {} };
     overlay.querySelectorAll('.import-checkbox:checked').forEach((el) => {
         const field = (el as HTMLInputElement).getAttribute('data-field');
         if (field === 'description') result.description = scraped.description;
@@ -231,13 +204,7 @@ export async function showMediaCsvConflictModal(conflicts: MediaConflict[]): Pro
     if (overlapping.length === 0) return conflicts.map(c => c.incoming);
 
     return new Promise((resolve) => {
-        (window as any).__modalCounter = ((window as any).__modalCounter || 0) + 1;
-        const overlay = document.createElement('div');
-        overlay.className = 'modal-overlay';
-        overlay.setAttribute('data-overlay-id', (window as any).__modalCounter.toString());
-        document.body.appendChild(overlay);
-        void overlay.offsetWidth;
-        overlay.classList.add('active');
+        const { overlay, cleanup } = createOverlay();
 
         const rowsHtml = overlapping.map((conflict, idx) => `
             <div style="padding: 0.5rem; background: var(--bg-dark); border: 1px solid var(--border-color); border-radius: var(--radius-sm); margin-bottom: 0.5rem; display: flex; align-items: center; justify-content: space-between;">
@@ -267,13 +234,6 @@ export async function showMediaCsvConflictModal(conflicts: MediaConflict[]): Pro
                     <button class="btn btn-primary" id="conflict-confirm">Continue</button>
                 </div>
             </div>`;
-
-        const cleanup = () => {
-             overlay.classList.remove('active');
-             overlay.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
-             overlay.removeAttribute('data-overlay-id');
-             setTimeout(() => overlay.remove(), 300);
-        };
         
         overlay.querySelector('#conflict-cancel')!.addEventListener('click', () => { cleanup(); resolve(null); });
         overlay.querySelector('#conflict-confirm')!.addEventListener('click', () => {
@@ -289,17 +249,17 @@ export async function showMediaCsvConflictModal(conflicts: MediaConflict[]): Pro
 }
 
 export async function showJitenSearchModal(media: Media): Promise<string | null> {
-    const overlay = createModalOverlay();
+    const { overlay, cleanup } = createOverlay();
     const handleEsc = (e: KeyboardEvent) => { if (e.key === 'Escape') cleanup(); };
     window.addEventListener('keydown', handleEsc, true);
 
-    const cleanup = () => {
+    const originalCleanup = cleanup;
+    const newCleanup = () => {
         window.removeEventListener('keydown', handleEsc, true);
-        overlay.classList.remove('active');
-        setTimeout(() => overlay.remove(), 300);
+        originalCleanup();
     };
 
-    return new Promise(async (resolve) => {
+    return new Promise((resolve) => {
         overlay.innerHTML = `
             <div class="modal-content" style="max-width: 800px; width: 95vw; max-height: 90vh; display: flex; flex-direction: column; padding: 1.5rem;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
@@ -339,8 +299,10 @@ export async function showJitenSearchModal(media: Media): Promise<string | null>
                 return;
             }
             renderJitenResults(resultsGrid, results, (selected) => {
-                if (selected.childrenDeckCount) showVolumes(selected);
-                else { cleanup(); resolve(getJitenDeckUrl(selected.deckId)); }
+                if (selected.childrenDeckCount) {
+                    void showVolumes(selected);
+                }
+                else { newCleanup(); resolve(getJitenDeckUrl(selected.deckId)); }
             });
         };
 
@@ -348,21 +310,23 @@ export async function showJitenSearchModal(media: Media): Promise<string | null>
             resultsGrid.innerHTML = '<div style="grid-column: 1 / -1; text-align: center; color: var(--text-secondary); padding: 3rem;">Loading...</div>';
             const backBtn = document.createElement('button');
             backBtn.className = 'btn btn-ghost'; backBtn.innerHTML = '← Back';
-            backBtn.addEventListener('click', () => performSearch(searchInput.value));
+            backBtn.addEventListener('click', () => {
+                void performSearch(searchInput.value);
+            });
             backContainer.innerHTML = ''; backContainer.appendChild(backBtn);
             const children = await getJitenDeckChildren(parent.deckId);
             renderJitenVolumes(resultsGrid, parent, children, (deckId) => {
-                cleanup(); resolve(getJitenDeckUrl(deckId));
+                newCleanup(); resolve(getJitenDeckUrl(deckId));
             });
         };
 
         overlay.querySelector('#jiten-search-clear')!.addEventListener('click', () => { searchInput.value = ''; searchInput.focus(); });
-        searchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') performSearch(searchInput.value.trim()); });
-        overlay.querySelector('#jiten-cancel')!.addEventListener('click', () => { cleanup(); resolve(null); });
+        searchInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { void performSearch(searchInput.value.trim()); } });
+        overlay.querySelector('#jiten-cancel')!.addEventListener('click', () => { newCleanup(); resolve(null); });
         overlay.querySelector('#jiten-confirm')!.addEventListener('click', () => { 
-            if (directLinkInput.value) { cleanup(); resolve(directLinkInput.value.trim()); } 
+            if (directLinkInput.value) { newCleanup(); resolve(directLinkInput.value.trim()); } 
         });
-        performSearch(media.title);
+        void performSearch(media.title);
     });
 }
 

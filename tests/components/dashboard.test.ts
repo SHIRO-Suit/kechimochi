@@ -1,9 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Dashboard } from '../../src/components/dashboard';
 import * as api from '../../src/api';
-import { StatsCard } from '../../src/components/dashboard/StatsCard';
-import { HeatmapView } from '../../src/components/dashboard/HeatmapView';
-import { ActivityCharts } from '../../src/components/dashboard/ActivityCharts';
+import { ActivityLog } from '../../src/api';
 import { customConfirm } from '../../src/modals';
 
 vi.mock('../../src/api', () => ({
@@ -58,7 +56,7 @@ describe('Dashboard', () => {
     it('should handle pagination', async () => {
         const mockLog = { id: 1, title: 'T', media_id: 1, duration_minutes: 10, date: '2024-01-01', media_type: 'Type', language: 'J' };
         const logs = Array(20).fill(mockLog);
-        vi.mocked(api.getLogs).mockResolvedValue(logs as any);
+        vi.mocked(api.getLogs).mockResolvedValue(logs as unknown as ActivityLog[]);
         vi.mocked(api.getHeatmap).mockResolvedValue([]);
         vi.mocked(api.getAllMedia).mockResolvedValue([]);
 
@@ -69,12 +67,13 @@ describe('Dashboard', () => {
         expect(nextPage).not.toBeNull();
         nextPage.click();
 
-        expect((dashboard as any).state.currentPage).toBe(2);
+        // @ts-expect-error - accessing private state
+        expect(dashboard.state.currentPage).toBe(2);
     });
 
     it('should prompt before deleting a log', async () => {
         const logs = [{ id: 456, title: 'To Delete', media_id: 1, duration_minutes: 10, date: '2024-01-01', media_type: 'Type', language: 'J' }];
-        vi.mocked(api.getLogs).mockResolvedValue(logs as any);
+        vi.mocked(api.getLogs).mockResolvedValue(logs as unknown as ActivityLog[]);
         vi.mocked(api.getHeatmap).mockResolvedValue([]);
         vi.mocked(api.getAllMedia).mockResolvedValue([]);
         

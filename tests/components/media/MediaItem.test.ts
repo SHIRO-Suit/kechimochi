@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MediaItem } from '../../../src/components/media/MediaItem';
 import * as api from '../../../src/api';
+import { Media } from '../../../src/api';
 
 vi.mock('../../../src/api', () => ({
     readFileBytes: vi.fn(),
@@ -24,7 +25,7 @@ describe('MediaItem', () => {
 
     it('should render title and placeholder initially', () => {
         const media = { title: 'Test Media', status: 'Active', content_type: 'Anime', tracking_status: 'Untracked' };
-        const component = new MediaItem(container, media as any, vi.fn());
+        const component = new MediaItem(container, media as unknown as Media, vi.fn());
         component.render();
 
         expect(container.textContent).toContain('Test Media');
@@ -34,7 +35,8 @@ describe('MediaItem', () => {
     it('should trigger click callback', () => {
         const onClick = vi.fn();
         const media = { title: 'T', status: 'Active', content_type: 'Anime', tracking_status: 'Untracked' };
-        new MediaItem(container, media as any, onClick);
+        const item = new MediaItem(container, media as unknown as Media, onClick);
+        expect(item).toBeDefined();
         
         container.click();
         expect(onClick).toHaveBeenCalled();
@@ -46,13 +48,15 @@ describe('MediaItem', () => {
         global.URL.createObjectURL = vi.fn(() => 'blob:abc');
 
         const media = { title: 'T', cover_image: '/path/to/img.jpg', status: 'Active' };
-        const component = new MediaItem(container, media as any, vi.fn());
+        const component = new MediaItem(container, media as unknown as Media, vi.fn());
         
         // Simulate intersection
-        const observerCallback = (vi.mocked(IntersectionObserver) as any).mock.calls[0][0];
-        observerCallback([{ isIntersecting: true }]);
+        // @ts-expect-error - testing private observer
+        const observerCallback = (vi.mocked(IntersectionObserver)).mock.calls[0][0];
+        observerCallback([{ isIntersecting: true }] as unknown as IntersectionObserverEntry[], {} as IntersectionObserver);
         
-        await vi.waitUntil(() => (component as any).state.imgSrc === 'blob:abc');
+        // @ts-expect-error - accessing private state
+        await vi.waitUntil(() => component.state.imgSrc === 'blob:abc');
         component.render();
 
         const img = container.querySelector('img');
@@ -62,20 +66,21 @@ describe('MediaItem', () => {
     });
 
     it('should handle image load failure', async () => {
-        const originalError = console.error;
-        console.error = vi.fn();
+        const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
         vi.mocked(api.readFileBytes).mockRejectedValue(new Error('File not found'));
         const media = { title: 'T', cover_image: '/bad/path.jpg', status: 'Active' };
-        const component = new MediaItem(container, media as any, vi.fn());
+        const component = new MediaItem(container, media as unknown as Media, vi.fn());
         
-        const observerCallback = (vi.mocked(IntersectionObserver) as any).mock.calls[0][0];
-        observerCallback([{ isIntersecting: true }]);
+        // @ts-expect-error - testing private observer
+        const observerCallback = (vi.mocked(IntersectionObserver)).mock.calls[0][0];
+        observerCallback([{ isIntersecting: true }] as unknown as IntersectionObserverEntry[], {} as IntersectionObserver);
         
         // Wait a bit for the async image loading to "fail"
         await new Promise(r => setTimeout(r, 10));
-        expect((component as any).state.imgSrc).toBeNull();
+        // @ts-expect-error - accessing private state
+        expect(component.state.imgSrc).toBeNull();
 
-        console.error = originalError;
+        consoleSpy.mockRestore();
     });
 });

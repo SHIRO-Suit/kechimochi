@@ -1,14 +1,10 @@
 import { getAllMedia, addLog, addMedia, updateMedia } from '../api';
 import { buildCalendar } from './calendar';
-import { customPrompt } from './base';
+import { customPrompt, createOverlay } from './base';
 
 export async function showExportCsvModal(): Promise<{mode: 'all' | 'range', start?: string, end?: string} | null> {
     return new Promise((resolve) => {
-        const overlay = document.createElement('div');
-        overlay.className = 'modal-overlay';
-        document.body.appendChild(overlay);
-        void overlay.offsetWidth;
-        overlay.classList.add('active');
+        const { overlay, cleanup } = createOverlay();
         
         const pad = (n: number) => n.toString().padStart(2, '0');
         const today = new Date();
@@ -39,12 +35,6 @@ export async function showExportCsvModal(): Promise<{mode: 'all' | 'range', star
         const modeRange = overlay.querySelector('input[value="range"]') as HTMLInputElement;
         const rangeInputs = overlay.querySelector('#export-range-inputs') as HTMLElement;
         overlay.querySelectorAll('input[name="export-mode"]').forEach(el => el.addEventListener('change', () => rangeInputs.style.display = modeRange.checked ? 'flex' : 'none'));
-
-        const cleanup = () => {
-             overlay.classList.remove('active');
-             overlay.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
-             setTimeout(() => overlay.remove(), 300);
-        };
         
         overlay.querySelector('#export-cancel')!.addEventListener('click', () => { cleanup(); resolve(null); });
         overlay.querySelector('#export-confirm')!.addEventListener('click', () => { 
@@ -56,14 +46,10 @@ export async function showExportCsvModal(): Promise<{mode: 'all' | 'range', star
 }
 
 export async function showLogActivityModal(prefillMediaTitle?: string): Promise<boolean> {
-    return new Promise(async (resolve) => {
-        const overlay = document.createElement('div');
-        overlay.className = 'modal-overlay';
-        document.body.appendChild(overlay);
-        void overlay.offsetWidth;
-        overlay.classList.add('active');
+    const mediaList = await getAllMedia();
+    return new Promise((resolve) => {
+        const { overlay, cleanup } = createOverlay();
 
-        const mediaList = await getAllMedia();
         const activeMedia = mediaList.filter(m => m.status !== 'Archived' && m.tracking_status === 'Ongoing');
 
         overlay.innerHTML = `
@@ -112,14 +98,13 @@ export async function showLogActivityModal(prefillMediaTitle?: string): Promise<
 
         window.addEventListener('keydown', handleEscape, true);
 
-        const cleanup = () => {
+        const originalCleanup = cleanup;
+        const newCleanup = () => {
              window.removeEventListener('keydown', handleEscape, true);
-             overlay.classList.remove('active');
-             overlay.querySelectorAll('[id]').forEach(el => (el as HTMLElement).removeAttribute('id'));
-             setTimeout(() => overlay.remove(), 300);
+             originalCleanup();
         };
 
-        overlay.querySelector('#activity-cancel')!.addEventListener('click', () => { cleanup(); resolve(false); });
+        overlay.querySelector('#activity-cancel')!.addEventListener('click', () => { newCleanup(); resolve(false); });
         overlay.querySelector('#add-activity-form')!.addEventListener('submit', async (e) => {
             e.preventDefault();
             const mediaTitle = (overlay.querySelector('#activity-media') as HTMLInputElement).value.trim();
@@ -142,7 +127,7 @@ export async function showLogActivityModal(prefillMediaTitle?: string): Promise<
             }
 
             await addLog({ media_id: mediaId, duration_minutes: duration, date: selectedDate });
-            cleanup();
+            newCleanup();
             resolve(true);
         });
     });

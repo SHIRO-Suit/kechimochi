@@ -27,8 +27,8 @@ describe('CUJ: Data Management (CSV Export)', () => {
   // Reusable helper to apply the mock with the newly added app hooks
   async function applyDialogMock(savePath: string) {
     await browser.execute((p) => {
-        (window as any).mockSavePath = p;
-        (window as any).mockOpenPath = p; // If needed for imports
+        (window as unknown as { mockSavePath: string, mockOpenPath: string }).mockSavePath = p;
+        (window as unknown as { mockSavePath: string, mockOpenPath: string }).mockOpenPath = p; // If needed for imports
     }, savePath);
   }
 
@@ -73,8 +73,11 @@ describe('CUJ: Data Management (CSV Export)', () => {
     const exportBtn = await $('#profile-btn-export-csv');
     try {
         await exportBtn.click();
-    } catch (e) {
-        await browser.execute((el: any) => el.click(), exportBtn);
+    } catch (e: unknown) {
+        // Fallback to JS click if element is obscured, ignoring the initial click error
+        // eslint-disable-next-line no-console
+        if (process.env.DEBUG) console.warn('Standard click failed, using fallback', (e as Error).message);
+        await browser.execute((el: unknown) => (el as HTMLElement).click(), exportBtn);
     }
 
     const radioRange = await $('input[name="export-mode"][value="range"]');

@@ -42,6 +42,7 @@ export class MediaDetail extends Component<MediaDetailState> {
             const milestones = await getMilestones(this.state.media.title);
             this.setState({ milestones });
         } catch (e) {
+            // eslint-disable-next-line no-console
             console.error("Failed to load milestones", e);
         }
     }
@@ -56,6 +57,7 @@ export class MediaDetail extends Component<MediaDetailState> {
             const src = URL.createObjectURL(blob);
             this.setState({ imgSrc: src });
         } catch (e) {
+            // eslint-disable-next-line no-console
             console.error("Failed to load image", e);
         }
     }
@@ -98,10 +100,12 @@ export class MediaDetail extends Component<MediaDetailState> {
                 <div id="media-content-area" style="display: flex; gap: 2rem; flex: 1; overflow: hidden;">
                     <!-- Left Column: Cover -->
                     <div style="flex: 0 0 300px; display: flex; flex-direction: column; min-height: 0;">
-                        ${imgSrc
-                ? html`<img src="${imgSrc}" style="width: 100%; aspect-ratio: 2/3; object-fit: cover; border-radius: var(--radius-md); cursor: pointer;" id="media-cover-img" alt="Cover" title="Double click to change image" />`
-                : html`<div style="width: 100%; aspect-ratio: 2/3; background: var(--bg-dark); border: 2px dashed var(--border-color); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-secondary);" id="media-cover-img" title="Double click to add image">No Image</div>`
-            }
+                        ${(() => {
+                            if (imgSrc) {
+                                return html`<img src="${imgSrc}" style="width: 100%; aspect-ratio: 2/3; object-fit: cover; border-radius: var(--radius-md); cursor: pointer;" id="media-cover-img" alt="Cover" title="Double click to change image" />`;
+                            }
+                            return html`<div style="width: 100%; aspect-ratio: 2/3; background: var(--bg-dark); border: 2px dashed var(--border-color); border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--text-secondary);" id="media-cover-img" title="Double click to add image">No Image</div>`;
+                        })()}
                         <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 0.5rem;">
                             <button class="btn" id="btn-delete-media-detail" style="background-color: #ff4757; color: white; border: none; font-weight: bold; width: 100%; padding: 0.6rem; font-size: 0.9rem;">Delete Media</button>
                             <div style="font-size: 0.7rem; color: var(--text-secondary); line-height: 1.2; text-align: center;">
@@ -241,6 +245,7 @@ export class MediaDetail extends Component<MediaDetailState> {
         try {
             extraData = JSON.parse(media.extra_data || "{}");
         } catch (e) {
+            // eslint-disable-next-line no-console
             console.warn("Could not parse extra data", e);
         }
 
@@ -335,7 +340,10 @@ export class MediaDetail extends Component<MediaDetailState> {
             }
 
             return await this.calculateRemainingTime(media, charCount, totalMin);
-        } catch (e) {
+        } catch (error) {
+            // Silently fail and return empty string if stats calculation fails
+            // eslint-disable-next-line no-console
+            console.error("Failed to calculate reading stats:", error);
             return "";
         }
     }
@@ -399,8 +407,15 @@ export class MediaDetail extends Component<MediaDetailState> {
 
         const setupEditable = (el: HTMLElement, field: string, options: { isExtra?: boolean, isTextArea?: boolean, isRenameKey?: boolean } = {}) => {
             el.addEventListener('dblclick', () => {
-                const currentVal = options.isRenameKey ? field : (options.isExtra ? (el.textContent === '-' ? '' : el.textContent) : (this.state.media[field as keyof Media] as string) || '');
-                const input = this.createEditInput(currentVal || '', options);
+                let currentVal: string;
+                if (options.isRenameKey) {
+                    currentVal = field;
+                } else if (options.isExtra) {
+                    currentVal = el.textContent === '-' ? '' : el.textContent || '';
+                } else {
+                    currentVal = (this.state.media[field as keyof Media] as string) || '';
+                }
+                const input = this.createEditInput(currentVal, options);
                 
                 const save = async () => {
                     const newVal = input.value.trim();
@@ -601,6 +616,7 @@ export class MediaDetail extends Component<MediaDetailState> {
                     this.state.media.cover_image = newPath;
                     await this.loadImage(); // Reload blob URL for the new image
                 } catch (err) {
+                    // eslint-disable-next-line no-console
                     console.error("Failed to download new cover", err);
                 }
             }

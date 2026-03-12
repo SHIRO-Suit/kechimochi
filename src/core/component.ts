@@ -1,4 +1,4 @@
-export abstract class Component<T = any> {
+export abstract class Component<T = unknown> {
     protected container: HTMLElement;
     protected state: T;
 

@@ -23,12 +23,19 @@ Designed with a local first philosophy, Kechimochi ensures that your data remain
 
 ## Core Features
 
-### Dashboard
-A dashboard designed to turn your logs into visible insights. Use the contribution heatmap to track your daily consistency and show off your progress with charts that break down your activity by week, month, and year.
+### Dashboard & Analytics
 
-### Automated Metadata
+![Dashboard](demos/dashboard_demo.gif)
 
-Kechimochi integrates with various media databases to help you organize your library.
+A vibrant and colorful dashboard where you can see your historical activities and immersion time, including statistics of how many hours have been spent every day, week, year, and on what content. You can also track your activities by clicking on the **New Activity** button.
+
+### Media Management & Automated Metadata
+
+![Library](demos/library_demo.gif)
+
+A fast and responsive library which tracks all the media you have added. You can browse the media you are currently watching, playing, or reading, and add milestones to track your breakthroughs (finished a route in a VN, reached a certain chapter in a book, finished a specific challenge in a game, etc). 
+
+The metadata of each entry is provided by various websites which the user can add and download from automatically:
 *   **Visual Novels**: VNDB
 *   **Anime and Movies**: AniList and IMDb
 *   **Manga and Books**: Bookmeter, BookWalker, Cmoa, and Shonen Jump Plus
@@ -36,6 +43,12 @@ Kechimochi integrates with various media databases to help you organize your lib
 *   **Dictionary Integration**: Jiten.moe metadata support
 
 Are we missing some sites? Let us know by opening an [issue](https://github.com/Morgawr/kechimochi/issues/new) on our issue tracker.
+
+### Customization
+
+![Themes](demos/themes_demo.gif)
+
+Multiple profiles to choose from to get your preferred color theme.
 
 ### Reading Analysis
 

@@ -5,11 +5,12 @@ import {
     getAllMedia, getLogsForMedia,
     clearActivities, wipeEverything,
     applyMediaImport, getSetting, setSetting,
-    getAppVersion, importMilestonesCsv, exportMilestonesCsv
+    getAppVersion, importMilestonesCsv, exportMilestonesCsv,
+    exportFullBackup, importFullBackup
 } from '../api';
 import {
     customPrompt, showExportCsvModal, customAlert, customConfirm,
-    showMediaCsvConflictModal
+    showMediaCsvConflictModal, showBlockingStatus
 } from '../modals';
 import { getServices } from '../services';
 import { STORAGE_KEYS, SETTING_KEYS, DEFAULTS, EVENTS } from '../constants';
@@ -170,6 +171,17 @@ export class ProfileView extends Component<ProfileState> {
                     <div style="display: flex; gap: 1rem; margin-top: 0.5rem;">
                         <button class="btn btn-primary" id="profile-btn-import-milestones" style="flex: 1;">Import Milestones (CSV)</button>
                         <button class="btn btn-primary" id="profile-btn-export-milestones" style="flex: 1;">Export Milestones (CSV)</button>
+                    </div>
+                </div>
+
+                <!-- Full Backup -->
+                <div class="card" style="display: flex; flex-direction: column; gap: 1rem;">
+                    <h3>Full Backup</h3>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem;">Import or export a full backup of your entire application state, including databases and local settings.</p>
+                    
+                    <div style="display: flex; gap: 1rem; margin-top: 0.5rem;">
+                        <button class="btn btn-primary" id="profile-btn-import-full-backup" style="flex: 1;">Import Full Backup</button>
+                        <button class="btn btn-primary" id="profile-btn-export-full-backup" style="flex: 1;">Export Full Backup</button>
                     </div>
                 </div>
 
@@ -363,6 +375,46 @@ export class ProfileView extends Component<ProfileState> {
                     await customAlert("Success", `Successfully exported ${count} milestones!`);
                 } catch (e) {
                     await customAlert("Error", `Export failed: ${e}`);
+                }
+            }
+        });
+
+        root.querySelector('#profile-btn-export-full-backup')?.addEventListener('click', async () => {
+            const progress = showBlockingStatus("Exporting Full Backup", "Export in progress...");
+            try {
+                const localStorageData = JSON.stringify(Object.fromEntries(Object.entries(localStorage)));
+                const version = await getAppVersion();
+                const exported = await exportFullBackup(localStorageData, version);
+                progress.close();
+                if (exported) {
+                    await customAlert("Success", "Full backup export completed.");
+                }
+            } catch (e) {
+                progress.close();
+                await customAlert("Error", `Export failed: ${e}`);
+            }
+        });
+
+        root.querySelector('#profile-btn-import-full-backup')?.addEventListener('click', async () => {
+            if (await customConfirm("Import Full Backup", "IMPORTING A FULL BACKUP WILL COMPLETELY REPLACE PREVIOUS DATA. Are you sure you want to proceed?", "btn-danger", "Import")) {
+                try {
+                    const newStorageStr = await importFullBackup();
+                    if (newStorageStr) {
+                        try {
+                            const newStorage = JSON.parse(newStorageStr);
+                            localStorage.clear();
+                            for (const [key, value] of Object.entries(newStorage)) {
+                                localStorage.setItem(key, value as string);
+                            }
+                        } catch (e) {
+                            Logger.error("Failed to parse or apply local storage from backup", e);
+                        }
+                        
+                        await customAlert("Success", "Backup imported successfully!");
+                        globalThis.location.reload();
+                    }
+                } catch (e) {
+                    await customAlert("Error", `Import failed: ${e}`);
                 }
             }
         });

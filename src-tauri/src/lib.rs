@@ -1,16 +1,17 @@
 pub mod db;
 pub mod models;
 pub mod csv_import;
+pub mod backup;
 
 use rusqlite::Connection;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use tauri::{Manager, State};
 
 use models::{ActivityLog, ActivitySummary, DailyHeatmap, Media, Milestone};
 
 // Database state
 pub struct DbState {
-    pub conn: Mutex<Connection>,
+    pub conn: Arc<Mutex<Connection>>,
 }
 
 #[tauri::command]
@@ -295,7 +296,7 @@ pub fn run() {
                 rusqlite::Connection::open_in_memory().unwrap()
             };
             app.manage(DbState {
-                conn: Mutex::new(conn),
+                conn: Arc::new(Mutex::new(conn)),
             });
             Ok(())
         })
@@ -332,7 +333,9 @@ pub fn run() {
             download_and_save_image,
             get_username,
             set_setting,
-            get_setting
+            get_setting,
+            backup::export_full_backup,
+            backup::import_full_backup
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

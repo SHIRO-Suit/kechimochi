@@ -8,12 +8,12 @@ import path from 'node:path';
 
 async function isOverlayActive(overlay: WebdriverIO.Element): Promise<boolean> {
     const className = await overlay.getAttribute('class').catch(() => '');
-    return className.split(/\s+/).includes('active');
+    return (className ?? '').split(/\s+/).includes('active');
 }
 
 async function getTopmostVisibleOverlay(selector?: string) {
     await browser.waitUntil(async () => {
-        const overlays = (await $$('.modal-overlay')).slice().reverse();
+        const overlays = Array.from(await $$('.modal-overlay')).reverse();
         for (const overlay of overlays) {
             if (!(await isOverlayActive(overlay))) continue;
 
@@ -29,7 +29,7 @@ async function getTopmostVisibleOverlay(selector?: string) {
         return false;
     }, { timeout: 8000, timeoutMsg: `No visible modal overlay found for selector "${selector || '<any>'}"` });
 
-    const overlays = (await $$('.modal-overlay')).slice().reverse();
+    const overlays = Array.from(await $$('.modal-overlay')).reverse();
     for (const overlay of overlays) {
         if (!(await isOverlayActive(overlay))) continue;
 
@@ -71,28 +71,6 @@ async function waitForOverlayToDisappear(overlay: WebdriverIO.Element, timeout =
     });
 }
 
-async function waitForModalContentToDisappear(
-    overlay: WebdriverIO.Element,
-    selector: string,
-    timeout = 5000,
-    timeoutMsg = `Modal content "${selector}" did not disappear in time`
-) {
-    const scopedElement = overlay.$(selector);
-
-    await browser.waitUntil(async () => {
-        if (!(await scopedElement.isDisplayed().catch(() => false))) return true;
-
-        const activeModalStillContainsSelector = await browser.execute((trackedSelector) => {
-            return Array.from(document.querySelectorAll('.modal-overlay.active'))
-                .some((modal) => Boolean(modal.querySelector(trackedSelector)));
-        }, selector).catch(() => false);
-
-        return !activeModalStillContainsSelector;
-    }, {
-        timeout,
-        timeoutMsg
-    });
-}
 
 /**
  * Use OCR to verify text is visible on screen.

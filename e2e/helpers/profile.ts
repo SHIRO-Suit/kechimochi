@@ -3,7 +3,7 @@
  */
 /// <reference types="@wdio/globals/types" />
 import { Logger } from '../../src/core/logger';
-import { dismissAlert } from './common.js';
+import { dismissAlert, setDialogMockPath } from './common.js';
 
 /**
  * Triggers report calculation in the Profile view.
@@ -77,7 +77,8 @@ const PROFILE_NAME_INPUT_SELECTOR = '#profile-root input[type="text"]';
 export async function openProfileNameEditor(): Promise<WebdriverIO.Element> {
     const existingInput = $(PROFILE_NAME_INPUT_SELECTOR);
     if (await existingInput.isExisting() && await existingInput.isDisplayed()) {
-        return await existingInput;
+        // @ts-expect-error: WDIO v9 typing quirk
+        return existingInput;
     }
 
     const heading = $(PROFILE_NAME_SELECTOR);
@@ -126,7 +127,8 @@ export async function openProfileNameEditor(): Promise<WebdriverIO.Element> {
 
     const input = $(PROFILE_NAME_INPUT_SELECTOR);
     await input.waitForDisplayed({ timeout: 2000 });
-    return await input;
+    // @ts-expect-error: WDIO v9 typing quirk
+    return input;
 }
 
 /**
@@ -155,4 +157,60 @@ export async function renameProfile(newName: string): Promise<void> {
         timeout: 5000,
         timeoutMsg: `Profile name did not update to ${newName}`
     });
+}
+
+/**
+ * Opens the profile picture picker by double-clicking the hero avatar.
+ */
+export async function uploadProfilePicture(imagePath: string): Promise<void> {
+    await setDialogMockPath(imagePath);
+
+    const avatar = $('#profile-hero-avatar');
+    await avatar.waitForDisplayed({ timeout: 5000 });
+    await avatar.scrollIntoView();
+    await browser.pause(500);
+
+    await browser.execute(() => {
+        const el = document.getElementById('profile-hero-avatar');
+        if (!el) return;
+        el.dispatchEvent(new MouseEvent('dblclick', {
+            bubbles: true,
+            cancelable: true,
+            detail: 2,
+            button: 0,
+            buttons: 1,
+            view: globalThis as unknown as Window
+        }));
+    });
+
+    const isSuccess = await browser.waitUntil(async () => {
+        const alertBody = $('#alert-body');
+        if (await alertBody.isDisplayed().catch(() => false)) {
+            return true;
+        }
+
+        const heroImg = $('#profile-hero-avatar img');
+        if (await heroImg.isDisplayed().catch(() => false)) {
+            const heroSrc = await heroImg.getAttribute('src').catch(() => '');
+            if ((heroSrc ?? '').startsWith('data:image/')) {
+                return true;
+            }
+        }
+        return false;
+    }, {
+        timeout: 15000,
+        interval: 250,
+        timeoutMsg: 'Profile picture upload did not produce a success image or an error alert in time'
+    }).catch(() => false);
+
+    const alertBody = $('#alert-body');
+    if (await alertBody.isDisplayed().catch(() => false)) {
+        const message = await alertBody.getText().catch(() => 'Profile picture upload failed.');
+        await dismissAlert(undefined, 0);
+        throw new Error(message);
+    }
+
+    if (!isSuccess) {
+        throw new Error('Profile picture hero avatar did not render a data URL image after upload in time');
+    }
 }

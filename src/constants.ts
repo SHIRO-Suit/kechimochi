@@ -32,6 +32,9 @@ export const SETTING_KEYS = {
     GRID_HIDE_ARCHIVED: 'grid_hide_archived',
     DASHBOARD_CHART_TYPE: 'dashboard_chart_type',
     DASHBOARD_GROUP_BY: 'dashboard_group_by',
+    UPDATES_AUTO_CHECK_ENABLED: 'updates_auto_check_enabled',
+    UPDATES_LAST_SEEN_RELEASE_VERSION: 'updates_last_seen_release_version',
+    UPDATES_E2E_RELEASE_VERSION: 'updates_e2e_release_version',
 } as const;
 
 export const DEFAULTS = {

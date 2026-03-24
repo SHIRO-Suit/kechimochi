@@ -3,7 +3,8 @@ FROM node:20-slim AS frontend
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
-COPY index.html tsconfig.json vite.config.ts ./
+COPY index.html tsconfig.json vite.config.ts CHANGELOG.md ./
+COPY scripts/ scripts/
 COPY src/ src/
 COPY public/ public/
 ARG VITE_GIT_HASH=docker

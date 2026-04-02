@@ -20,13 +20,11 @@ import { type LibraryLayoutMode, waitForLibraryLayout } from './library.js';
 export async function clickMarkAsComplete(): Promise<void> {
     const btn = $('#btn-mark-complete');
     await btn.waitForDisplayed({ timeout: 5000 });
-    await btn.waitForClickable({ timeout: 2000 });
-    await btn.click();
+    await safeClick(btn);
 
     // Wait for the tracking status badge to update to Complete
-    const trackingStatus = $('#media-tracking-status');
     await browser.waitUntil(async () => {
-        return (await trackingStatus.getValue()) === 'Complete';
+        return (await $('#media-tracking-status').getValue()) === 'Complete';
     }, { timeout: 3000, timeoutMsg: 'Tracking status did not update to Complete' });
 }
 
@@ -103,7 +101,15 @@ export async function clickBackButton(): Promise<void> {
     const btn = $('#btn-back-grid');
     await btn.waitForDisplayed({ timeout: 5000 });
     await btn.click();
-    await browser.pause(500); // Wait for transition
+    await browser.waitUntil(async () => {
+        const detailVisible = await $('#media-detail-header').isDisplayed().catch(() => false);
+        const gridVisible = await $('#media-grid-container').isDisplayed().catch(() => false);
+        const listVisible = await $('#media-list-container').isDisplayed().catch(() => false);
+        return !detailVisible && (gridVisible || listVisible);
+    }, {
+        timeout: 5_000,
+        timeoutMsg: 'Media detail did not transition back to the library in time'
+    });
 }
 
 /**
@@ -118,23 +124,21 @@ export async function editDescription(newDescription: string): Promise<void> {
         timeoutMsg: 'Description field never became visible'
     });
 
-    let opened = false;
-    for (let attempt = 0; attempt < 3 && !opened; attempt++) {
-        try {
-            const descEl = await $('#media-description');
-            await descEl.scrollIntoView();
-            await descEl.doubleClick();
-            const textarea = await $('textarea');
-            await textarea.waitForDisplayed({ timeout: 3000 });
-            opened = true;
-        } catch {
-            await browser.pause(200);
+    await browser.waitUntil(async () => {
+        const textarea = $('textarea');
+        if (await textarea.isDisplayed().catch(() => false)) {
+            return true;
         }
-    }
 
-    if (!opened) {
-        throw new Error('Failed to enter description edit mode after retries');
-    }
+        const descEl = $('#media-description');
+        await descEl.scrollIntoView();
+        await descEl.doubleClick();
+        return await textarea.isDisplayed().catch(() => false);
+    }, {
+        timeout: 3_000,
+        interval: 150,
+        timeoutMsg: 'Failed to enter description edit mode after retries'
+    });
 
     const textarea = await $('textarea');
     await textarea.waitForDisplayed({ timeout: 3000 });
@@ -491,7 +495,19 @@ export async function logActivityFromDetail(expectedTitle: string, duration: str
 
     // Wait for modal to disappear
     await modal.waitForDisplayed({ reverse: true, timeout: 5000 });
-    await browser.pause(500); // Wait for re-render of logs
+    await browser.waitUntil(async () => {
+        const entries = await $$('.media-detail-log-item');
+        for (const entry of entries) {
+            const text = await entry.getText().catch(() => '');
+            if (text.includes(`${duration} Minutes`)) {
+                return await entry.isDisplayed().catch(() => false);
+            }
+        }
+        return false;
+    }, {
+        timeout: 5_000,
+        timeoutMsg: `Activity log entry for ${duration} Minutes did not appear after creating an entry`
+    });
 }
 
 /**

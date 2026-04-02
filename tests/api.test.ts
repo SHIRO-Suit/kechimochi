@@ -186,6 +186,39 @@ describe('api.ts', () => {
     });
   });
 
+  describe('sync functions', () => {
+    it.each([
+      ['getSyncStatus', () => api.getSyncStatus(), 'get_sync_status'],
+      ['connectGoogleDrive', () => api.connectGoogleDrive(), 'connect_google_drive'],
+      ['disconnectGoogleDrive', () => api.disconnectGoogleDrive(), 'disconnect_google_drive'],
+      ['listRemoteSyncProfiles', () => api.listRemoteSyncProfiles(), 'list_remote_sync_profiles'],
+      ['createRemoteSyncProfile', () => api.createRemoteSyncProfile(), 'create_remote_sync_profile'],
+      ['runSync', () => api.runSync(), 'run_sync'],
+      ['replaceLocalFromRemote', () => api.replaceLocalFromRemote(), 'replace_local_from_remote'],
+      ['forcePublishLocalAsRemote', () => api.forcePublishLocalAsRemote(), 'force_publish_local_as_remote'],
+      ['getSyncConflicts', () => api.getSyncConflicts(), 'get_sync_conflicts'],
+    ])('%s should call invoke', async (_label, fn, command) => {
+      await fn();
+      expect(invoke).toHaveBeenCalledWith(command);
+    });
+
+    it.each([
+      ['previewAttachRemoteSyncProfile', () => api.previewAttachRemoteSyncProfile('prof_123'), 'preview_attach_remote_sync_profile', { profileId: 'prof_123' }],
+      ['attachRemoteSyncProfile', () => api.attachRemoteSyncProfile('prof_123'), 'attach_remote_sync_profile', { profileId: 'prof_123' }],
+    ])('%s should call invoke with args', async (_label, fn, command, args) => {
+      await fn();
+      expect(invoke).toHaveBeenCalledWith(command, args);
+    });
+
+    it('resolveSyncConflict should call invoke', async () => {
+      await api.resolveSyncConflict(2, { kind: 'media_field', side: 'remote' });
+      expect(invoke).toHaveBeenCalledWith('resolve_sync_conflict', {
+        conflictIndex: 2,
+        resolution: { kind: 'media_field', side: 'remote' },
+      });
+    });
+  });
+
   describe('file and image functions', () => {
     it('uploadCoverImage should call invoke', async () => {
       await api.uploadCoverImage(1, 'p');

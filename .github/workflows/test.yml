@@ -145,3 +145,6 @@ jobs:
     permissions:
       contents: read
     uses: ./.github/workflows/publish.yml
+    secrets:
+      KECHIMOCHI_GOOGLE_CLIENT_ID: ${{ secrets.KECHIMOCHI_GOOGLE_CLIENT_ID }}
+      KECHIMOCHI_GOOGLE_CLIENT_SECRET: ${{ secrets.KECHIMOCHI_GOOGLE_CLIENT_SECRET }}

@@ -20,6 +20,39 @@ function resolveElement(target: ElementTarget): WebdriverIO.Element {
     return target;
 }
 
+function selectorForTarget(target: ElementTarget, element: WebdriverIO.Element): string | null {
+    if (typeof target === 'string') {
+        return target;
+    }
+
+    const selector = (element as unknown as { selector?: unknown }).selector;
+    return typeof selector === 'string' ? selector : null;
+}
+
+function clickLastVisibleMatch(selector: string): Promise<void> {
+    return browser.execute((resolvedSelector) => {
+        const nodes = Array.from(document.querySelectorAll(resolvedSelector as string)).reverse();
+        const target = nodes.find((node) => {
+            if (!(node instanceof HTMLElement)) {
+                return false;
+            }
+
+            const style = globalThis.getComputedStyle(node);
+            const rect = node.getBoundingClientRect();
+            return style.display !== 'none'
+                && style.visibility !== 'hidden'
+                && rect.width > 0
+                && rect.height > 0;
+        });
+
+        if (!(target instanceof HTMLElement)) {
+            throw new TypeError(`Could not resolve clickable element for selector ${resolvedSelector}`);
+        }
+
+        target.click();
+    }, selector);
+}
+
 export async function isOverlayActive(overlay: WebdriverIO.Element): Promise<boolean> {
     const className = await overlay.getAttribute('class').catch(() => '');
     return (className ?? '').split(/\s+/).includes('active');
@@ -28,8 +61,22 @@ export async function isOverlayActive(overlay: WebdriverIO.Element): Promise<boo
 export async function waitForNoActiveOverlays(timeout = 5000): Promise<void> {
     await browser.waitUntil(async () => {
         return await browser.execute(() => {
-            return !Array.from(document.querySelectorAll('.modal-overlay')).some((overlay) => {
-                return overlay.classList.contains('active');
+            const overlays = Array.from(document.querySelectorAll('.modal-overlay'));
+            return !overlays.some((overlay) => {
+                if (!(overlay instanceof HTMLElement)) {
+                    return false;
+                }
+
+                if (!overlay.classList.contains('active')) {
+                    return false;
+                }
+
+                const style = globalThis.getComputedStyle(overlay);
+                const rect = overlay.getBoundingClientRect();
+                return style.display !== 'none'
+                    && style.visibility !== 'hidden'
+                    && rect.width > 0
+                    && rect.height > 0;
             });
         });
     }, {
@@ -41,37 +88,58 @@ export async function waitForNoActiveOverlays(timeout = 5000): Promise<void> {
 
 export async function getTopmostVisibleOverlay(selector?: string) {
     await browser.waitUntil(async () => {
-        const overlays = Array.from(await $$('.modal-overlay')).reverse();
-        for (const overlay of overlays) {
-            if (!(await isOverlayActive(overlay))) continue;
-
-            if (selector) {
-                const child = overlay.$(selector);
-                if (!(await child.isDisplayed().catch(() => false))) {
-                    continue;
-                }
-            }
-
-            return true;
-        }
-        return false;
+        return (await findTopmostVisibleOverlay(selector)) !== null;
     }, { timeout: 8000, timeoutMsg: `No visible modal overlay found for selector "${selector || '<any>'}"` });
 
-    const overlays = Array.from(await $$('.modal-overlay')).reverse();
-    for (const overlay of overlays) {
-        if (!(await isOverlayActive(overlay))) continue;
-
-        if (selector) {
-            const child = overlay.$(selector);
-            if (!(await child.isDisplayed().catch(() => false))) {
-                continue;
-            }
-        }
-
+    const overlay = await findTopmostVisibleOverlay(selector);
+    if (overlay) {
         return overlay;
     }
 
     throw new Error(`No visible modal overlay found for selector "${selector || '<any>'}"`);
+}
+
+export async function findTopmostVisibleOverlay(selector?: string): Promise<WebdriverIO.Element | null> {
+    const modalId = await browser.execute((targetSelector) => {
+        const overlays = Array.from(document.querySelectorAll('.modal-overlay')).reverse();
+        const isVisible = (node: Element | null): boolean => {
+            if (!(node instanceof HTMLElement)) {
+                return false;
+            }
+
+            const style = globalThis.getComputedStyle(node);
+            const rect = node.getBoundingClientRect();
+            return node.classList.contains('active')
+                && style.display !== 'none'
+                && style.visibility !== 'hidden'
+                && rect.width > 0
+                && rect.height > 0;
+        };
+
+        for (const overlay of overlays) {
+            if (!isVisible(overlay)) {
+                continue;
+            }
+
+            if (typeof targetSelector === 'string' && targetSelector.length > 0) {
+                const child = overlay.querySelector(targetSelector);
+                if (!(child instanceof HTMLElement)) {
+                    continue;
+                }
+            }
+
+            return (overlay as HTMLElement).dataset.modalId ?? null;
+        }
+
+        return null;
+    }, selector ?? '');
+
+    if (!modalId) {
+        return null;
+    }
+
+    const overlay = $(`.modal-overlay[data-modal-id="${modalId}"]`);
+    return await overlay.isExisting().catch(() => false) ? overlay : null;
 }
 
 export async function waitForOverlayToDisappear(overlay: WebdriverIO.Element, timeout = 5000) {
@@ -118,9 +186,18 @@ export async function safeClick(target: ElementTarget, timeout = 5000): Promise<
             try {
                 await element.click();
             } catch {
-                await browser.execute((el) => {
-                    (el as HTMLElement).click();
-                }, element);
+                const selector = selectorForTarget(target, element);
+                if (selector) {
+                    await clickLastVisibleMatch(selector);
+                } else {
+                    await browser.execute((el) => {
+                        if (!(el instanceof HTMLElement)) {
+                            throw new TypeError('Resolved click target is not an HTMLElement');
+                        }
+
+                        el.click();
+                    }, element);
+                }
             }
 
             return;
@@ -344,5 +421,5 @@ export async function performActivityEdit(btnSelector: string, newDuration: stri
     await submitBtn.click();
 
     await modal.waitForDisplayed({ reverse: true, timeout: 5000 });
-    await browser.pause(500); // reduced from 1000
+    await waitForNoActiveOverlays(5000);
 }

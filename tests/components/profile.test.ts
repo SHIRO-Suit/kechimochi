@@ -1,15 +1,37 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { resolve } from 'node:path';
 import { ProfileView } from '../../src/components/profile';
 import * as api from '../../src/api';
 import { Media } from '../../src/api';
 import { STORAGE_KEYS, SETTING_KEYS } from '../../src/constants';
 import { Logger } from '../../src/core/logger';
+import {
+    buildConnectedSyncStatus,
+    buildGoogleDriveAuthSession,
+    buildRemoteSyncProfileSummary,
+    buildSyncActionResult,
+    buildSyncAttachPreview,
+    buildSyncStatus,
+} from '../sync-fixtures';
 
 vi.mock('../../src/api', () => ({
     getSetting: vi.fn(),
     getAppVersion: vi.fn(),
     getProfilePicture: vi.fn(() => Promise.resolve(null)),
     uploadProfilePicture: vi.fn(),
+    getSyncStatus: vi.fn(),
+    connectGoogleDrive: vi.fn(),
+    disconnectGoogleDrive: vi.fn(),
+    listRemoteSyncProfiles: vi.fn(),
+    previewAttachRemoteSyncProfile: vi.fn(),
+    createRemoteSyncProfile: vi.fn(),
+    attachRemoteSyncProfile: vi.fn(),
+    runSync: vi.fn(),
+    replaceLocalFromRemote: vi.fn(),
+    forcePublishLocalAsRemote: vi.fn(),
+    getSyncConflicts: vi.fn(),
+    resolveSyncConflict: vi.fn(),
+    subscribeSyncProgress: vi.fn(() => Promise.resolve(() => undefined)),
     getAllMedia: vi.fn(),
     listProfiles: vi.fn(),
     setSetting: vi.fn(),
@@ -45,23 +67,69 @@ vi.mock('../../src/modals', () => ({
     customPrompt: vi.fn(),
     showExportCsvModal: vi.fn(),
     showBlockingStatus: vi.fn(() => ({ close: vi.fn() })),
+    showSyncEnablementWizard: vi.fn(),
+    showSyncAttachPreview: vi.fn(),
     showInstalledUpdateModal: vi.fn(() => Promise.resolve()),
     showAvailableUpdateModal: vi.fn(() => Promise.resolve()),
 }));
 
 import * as modals from '../../src/modals';
 
+function mockStandardProfileLoad(options?: {
+    appVersion?: string;
+    profileName?: string;
+    theme?: string;
+    statsReportTimestamp?: string;
+}) {
+    const {
+        appVersion = '1.0.0',
+        profileName = 'test-user',
+        theme = 'pastel-pink',
+        statsReportTimestamp = '',
+    } = options ?? {};
+
+    vi.mocked(api.getSetting).mockImplementation(async (key) => {
+        if (key === SETTING_KEYS.PROFILE_NAME) return profileName;
+        if (key === SETTING_KEYS.THEME) return theme;
+        if (key === SETTING_KEYS.STATS_REPORT_TIMESTAMP) return statsReportTimestamp;
+        return '0';
+    });
+    vi.mocked(api.getAppVersion).mockResolvedValue(appVersion);
+}
+
+async function renderAndClickEnableSync(container: HTMLElement) {
+    const view = new ProfileView(container);
+    view.render();
+
+    await vi.waitFor(() => expect(container.querySelector('#profile-btn-enable-sync')).not.toBeNull());
+    (container.querySelector('#profile-btn-enable-sync') as HTMLButtonElement).click();
+
+    return view;
+}
+
+async function expectLatestAlert(title: string, message: string) {
+    await vi.waitFor(() => expect(modals.customAlert).toHaveBeenCalledWith(
+        title,
+        expect.stringContaining(message)
+    ));
+}
+
 describe('ProfileView', () => {
     let container: HTMLElement;
+    const SAFE_BACKUP_PATH = resolve(process.cwd(), 'e2e', 'fixtures', 'recovery.zip');
 
     beforeEach(() => {
         container = document.createElement('div');
         vi.clearAllMocks();
+        mockServices.isDesktop.mockReturnValue(true);
         vi.spyOn(Logger, 'warn').mockImplementation(() => {});
         const globals = globalThis as Record<string, unknown>;
         globals.__APP_BUILD_CHANNEL__ = 'release';
         globals.__APP_RELEASE_STAGE__ = 'beta';
-        
+        mockStandardProfileLoad();
+        vi.mocked(api.getSyncStatus).mockResolvedValue(buildSyncStatus());
+        vi.mocked(api.getSyncConflicts).mockResolvedValue([]);
+
         // Mock localStorage
         const store: Record<string, string> = { [STORAGE_KEYS.CURRENT_PROFILE]: 'test-user' };
         vi.stubGlobal('localStorage', {
@@ -77,13 +145,10 @@ describe('ProfileView', () => {
     });
 
     it('should load settings and render profile name', async () => {
-        vi.mocked(api.getSetting).mockImplementation(async (key) => {
-            if (key === SETTING_KEYS.PROFILE_NAME) return 'test-user';
-            if (key === SETTING_KEYS.THEME) return 'pastel-pink';
-            if (key === SETTING_KEYS.STATS_REPORT_TIMESTAMP) return '2024-01-01T00:00:00Z';
-            return '0';
+        mockStandardProfileLoad({
+            appVersion: '1.2.3',
+            statsReportTimestamp: '2024-01-01T00:00:00Z',
         });
-        vi.mocked(api.getAppVersion).mockResolvedValue('1.2.3');
 
         const view = new ProfileView(container);
         view.render();
@@ -94,13 +159,7 @@ describe('ProfileView', () => {
     });
 
     it('should render profile picture preview when one exists', async () => {
-        vi.mocked(api.getSetting).mockImplementation(async (key) => {
-            if (key === SETTING_KEYS.PROFILE_NAME) return 'test-user';
-            if (key === SETTING_KEYS.THEME) return 'pastel-pink';
-            if (key === SETTING_KEYS.STATS_REPORT_TIMESTAMP) return '';
-            return '0';
-        });
-        vi.mocked(api.getAppVersion).mockResolvedValue('1.2.3');
+        mockStandardProfileLoad({ appVersion: '1.2.3' });
         vi.mocked(api.getProfilePicture).mockResolvedValue({
             mime_type: 'image/png',
             base64_data: 'YWJj',
@@ -117,13 +176,7 @@ describe('ProfileView', () => {
     });
 
     it('should still render the profile view if profile picture loading fails', async () => {
-        vi.mocked(api.getSetting).mockImplementation(async (key) => {
-            if (key === SETTING_KEYS.PROFILE_NAME) return 'test-user';
-            if (key === SETTING_KEYS.THEME) return 'pastel-pink';
-            if (key === SETTING_KEYS.STATS_REPORT_TIMESTAMP) return '';
-            return '0';
-        });
-        vi.mocked(api.getAppVersion).mockResolvedValue('1.2.3');
+        mockStandardProfileLoad({ appVersion: '1.2.3' });
         vi.mocked(api.getProfilePicture).mockRejectedValue(new Error('missing backend route'));
 
         const view = new ProfileView(container);
@@ -134,13 +187,7 @@ describe('ProfileView', () => {
     });
 
     it('should upload a profile picture by double-clicking the hero avatar', async () => {
-        vi.mocked(api.getSetting).mockImplementation(async (key) => {
-            if (key === SETTING_KEYS.PROFILE_NAME) return 'test-user';
-            if (key === SETTING_KEYS.THEME) return 'pastel-pink';
-            if (key === SETTING_KEYS.STATS_REPORT_TIMESTAMP) return '';
-            return '0';
-        });
-        vi.mocked(api.getAppVersion).mockResolvedValue('1.2.3');
+        mockStandardProfileLoad({ appVersion: '1.2.3' });
         vi.mocked(api.uploadProfilePicture).mockResolvedValue({
             mime_type: 'image/png',
             base64_data: 'YWJj',
@@ -164,17 +211,9 @@ describe('ProfileView', () => {
     });
 
     it('should change theme', async () => {
-        vi.mocked(api.getSetting).mockResolvedValue('dark');
-        vi.mocked(api.getAppVersion).mockResolvedValue('1.0.0');
+        mockStandardProfileLoad({ theme: 'dark' });
 
         const view = new ProfileView(container);
-        // We need to wait for loadData to finish which calls getSetting('stats_report_timestamp')
-        // Since we mocked it to return 'dark', we must pass a valid date instead.
-        vi.mocked(api.getSetting).mockImplementation(async (key) => {
-            if (key === SETTING_KEYS.THEME) return 'dark';
-            if (key === SETTING_KEYS.STATS_REPORT_TIMESTAMP) return '';
-            return '0';
-        });
 
         view.render();
 
@@ -188,14 +227,6 @@ describe('ProfileView', () => {
     });
 
     it('should render update controls and forward update actions', async () => {
-        vi.mocked(api.getSetting).mockImplementation(async (key) => {
-            if (key === SETTING_KEYS.PROFILE_NAME) return 'test-user';
-            if (key === SETTING_KEYS.THEME) return 'pastel-pink';
-            if (key === SETTING_KEYS.STATS_REPORT_TIMESTAMP) return '';
-            return '0';
-        });
-        vi.mocked(api.getAppVersion).mockResolvedValue('1.0.0');
-
         const subscribe = vi.fn((listener: (state: unknown) => void) => {
             listener({
                 checking: false,
@@ -232,6 +263,304 @@ describe('ProfileView', () => {
 
         (container.querySelector('#profile-btn-check-updates') as HTMLButtonElement).click();
         await vi.waitFor(() => expect(updateManager.checkForUpdates).toHaveBeenCalledWith({ manual: true }));
+    });
+
+    it('should render the Cloud Sync card when disconnected', async () => {
+        const view = new ProfileView(container);
+        view.render();
+
+        await vi.waitFor(() => expect(container.querySelector('#profile-sync-card')).not.toBeNull());
+        expect(container.textContent).toContain('Cloud Sync');
+        expect(container.querySelector('#profile-btn-enable-sync')).not.toBeNull();
+    });
+
+    it('should enable sync by creating a new remote profile', async () => {
+        vi.mocked(api.getSyncStatus)
+            .mockResolvedValueOnce(buildSyncStatus())
+            .mockResolvedValueOnce(buildConnectedSyncStatus());
+        vi.mocked(api.connectGoogleDrive).mockResolvedValue(buildGoogleDriveAuthSession());
+        vi.mocked(api.listRemoteSyncProfiles).mockResolvedValue([]);
+        vi.mocked(modals.showSyncEnablementWizard).mockResolvedValue({ action: 'create_new' });
+        vi.mocked(api.createRemoteSyncProfile).mockResolvedValue(buildSyncActionResult({
+            safety_backup_path: '/home/testuser/pre_sync_backup.zip',
+            published_snapshot_id: 'snap_1',
+        }));
+
+        const view = new ProfileView(container);
+        view.render();
+
+        await vi.waitFor(() => expect(container.querySelector('#profile-btn-enable-sync')).not.toBeNull());
+        (container.querySelector('#profile-btn-enable-sync') as HTMLButtonElement).click();
+
+        await vi.waitFor(() => expect(api.createRemoteSyncProfile).toHaveBeenCalled());
+        expect(api.connectGoogleDrive).toHaveBeenCalled();
+        expect(api.listRemoteSyncProfiles).toHaveBeenCalled();
+        expect(api.subscribeSyncProgress).toHaveBeenCalled();
+        expect(modals.showSyncEnablementWizard).toHaveBeenCalledWith([], 'sync@example.com');
+        expect(modals.customAlert).toHaveBeenCalledWith('Cloud Sync Enabled', expect.stringContaining('Cloud Sync is now enabled'));
+    });
+
+    it('should offer reconnect when a sync profile is attached but Google auth is missing', async () => {
+        vi.mocked(api.getSyncStatus)
+            .mockResolvedValueOnce(buildConnectedSyncStatus({ google_authenticated: false }))
+            .mockResolvedValueOnce(buildConnectedSyncStatus());
+        vi.mocked(api.connectGoogleDrive).mockResolvedValue(buildGoogleDriveAuthSession());
+
+        const view = new ProfileView(container);
+        view.render();
+
+        await vi.waitFor(() => expect(container.querySelector('#profile-btn-reconnect-sync')).not.toBeNull());
+        expect(container.textContent).toContain('Reconnect Needed');
+        expect(container.textContent).toContain('needs to be reconnected');
+
+        (container.querySelector('#profile-btn-reconnect-sync') as HTMLButtonElement).click();
+
+        await vi.waitFor(() => expect(api.connectGoogleDrive).toHaveBeenCalled());
+        await vi.waitFor(() => expect(modals.customAlert).toHaveBeenCalledWith(
+            'Google Drive Reconnected',
+            expect.stringContaining('sync again now')
+        ));
+    });
+
+    it('should subscribe to sync progress while attaching an existing cloud profile', async () => {
+        vi.mocked(api.getSyncStatus)
+            .mockResolvedValueOnce(buildSyncStatus({
+                google_authenticated: true,
+                google_account_email: 'sync@example.com',
+            }))
+            .mockResolvedValueOnce(buildConnectedSyncStatus());
+        vi.mocked(api.listRemoteSyncProfiles).mockResolvedValue([buildRemoteSyncProfileSummary()]);
+        vi.mocked(modals.showSyncEnablementWizard).mockResolvedValue({
+            action: 'attach',
+            profileId: 'prof_1',
+        });
+        vi.mocked(api.previewAttachRemoteSyncProfile).mockResolvedValue(buildSyncAttachPreview());
+        vi.mocked(modals.showSyncAttachPreview).mockResolvedValue(true);
+        vi.mocked(api.attachRemoteSyncProfile).mockResolvedValue(buildSyncActionResult({
+            safety_backup_path: '/home/testuser/pre_sync_backup.zip',
+            published_snapshot_id: 'snap_2',
+            remote_changed: true,
+        }));
+
+        const view = new ProfileView(container);
+        view.render();
+
+        await vi.waitFor(() => expect(container.querySelector('#profile-btn-enable-sync')).not.toBeNull());
+        (container.querySelector('#profile-btn-enable-sync') as HTMLButtonElement).click();
+
+        await vi.waitFor(() => expect(api.attachRemoteSyncProfile).toHaveBeenCalledWith('prof_1'));
+        expect(api.subscribeSyncProgress).toHaveBeenCalled();
+        expect(modals.customAlert).toHaveBeenCalledWith(
+            'Cloud Sync Attached',
+            expect.stringContaining('The profile was attached successfully')
+        );
+    });
+
+    it('should subscribe to sync progress while running sync', async () => {
+        vi.mocked(api.getSyncStatus).mockResolvedValue(buildConnectedSyncStatus());
+        vi.mocked(api.runSync).mockResolvedValue(buildSyncActionResult({
+            sync_status: { last_sync_at: '2026-04-02T00:10:00Z' },
+            published_snapshot_id: 'snap_2',
+            remote_changed: true,
+        }));
+
+        const view = new ProfileView(container);
+        view.render();
+
+        await vi.waitFor(() => expect(container.querySelector('#profile-btn-run-sync')).not.toBeNull());
+        (container.querySelector('#profile-btn-run-sync') as HTMLButtonElement).click();
+
+        await vi.waitFor(() => expect(api.runSync).toHaveBeenCalled());
+        expect(api.subscribeSyncProgress).toHaveBeenCalled();
+        expect(modals.customAlert).toHaveBeenCalledWith(
+            'Sync Complete',
+            expect.stringContaining('Cloud Sync completed successfully')
+        );
+    });
+
+    it('should simplify sync card details and hide generic device placeholders', async () => {
+        vi.mocked(api.getSyncStatus).mockResolvedValue(buildConnectedSyncStatus({
+            state: 'dirty',
+            google_account_email: null,
+            device_name: 'Device',
+        }));
+
+        const view = new ProfileView(container);
+        view.render();
+
+        await vi.waitFor(() => expect(container.querySelector('#profile-sync-card')).not.toBeNull());
+
+        expect(container.textContent).toContain('Unsynced Changes');
+        expect(container.textContent).not.toContain('Unsynced local changes');
+        expect(container.textContent).not.toContain('Google account');
+        expect(container.textContent).not.toContain('Device name');
+        expect(container.textContent).not.toContain('Current installation');
+        expect(container.querySelector('#profile-btn-replace-local-from-remote')).toBeNull();
+
+        (container.querySelector('#profile-btn-toggle-sync-recovery') as HTMLButtonElement).click();
+
+        await vi.waitFor(() => expect(container.querySelector('#profile-btn-replace-local-from-remote')).not.toBeNull());
+    });
+
+    it('should replace local data from remote after confirmation', async () => {
+        vi.mocked(api.getSyncStatus).mockResolvedValue(buildConnectedSyncStatus());
+        vi.mocked(modals.customConfirm).mockResolvedValue(true);
+        vi.mocked(api.replaceLocalFromRemote).mockResolvedValue(buildSyncActionResult({
+            sync_status: { last_sync_at: '2026-04-02T00:20:00Z' },
+            safety_backup_path: SAFE_BACKUP_PATH,
+            remote_changed: true,
+        }));
+
+        const view = new ProfileView(container);
+        view.render();
+
+        await vi.waitFor(() => expect(container.querySelector('#profile-btn-toggle-sync-recovery')).not.toBeNull());
+        (container.querySelector('#profile-btn-toggle-sync-recovery') as HTMLButtonElement).click();
+        await vi.waitFor(() => expect(container.querySelector('#profile-btn-replace-local-from-remote')).not.toBeNull());
+        (container.querySelector('#profile-btn-replace-local-from-remote') as HTMLButtonElement).click();
+
+        await vi.waitFor(() => expect(api.replaceLocalFromRemote).toHaveBeenCalled());
+        expect(api.subscribeSyncProgress).toHaveBeenCalled();
+        expect(modals.customAlert).toHaveBeenCalledWith(
+            'Local Recovery Complete',
+            expect.stringContaining('latest cloud snapshot')
+        );
+    });
+
+    it('should force publish local data after confirmation', async () => {
+        vi.mocked(api.getSyncStatus).mockResolvedValue(buildConnectedSyncStatus({ state: 'dirty' }));
+        vi.mocked(modals.customConfirm).mockResolvedValue(true);
+        vi.mocked(api.forcePublishLocalAsRemote).mockResolvedValue(buildSyncActionResult({
+            sync_status: { last_sync_at: '2026-04-02T00:30:00Z' },
+            safety_backup_path: SAFE_BACKUP_PATH,
+            published_snapshot_id: 'snap_force_1',
+        }));
+
+        const view = new ProfileView(container);
+        view.render();
+
+        await vi.waitFor(() => expect(container.querySelector('#profile-btn-toggle-sync-recovery')).not.toBeNull());
+        (container.querySelector('#profile-btn-toggle-sync-recovery') as HTMLButtonElement).click();
+        await vi.waitFor(() => expect(container.querySelector('#profile-btn-force-publish-local')).not.toBeNull());
+        (container.querySelector('#profile-btn-force-publish-local') as HTMLButtonElement).click();
+
+        await vi.waitFor(() => expect(api.forcePublishLocalAsRemote).toHaveBeenCalled());
+        expect(api.subscribeSyncProgress).toHaveBeenCalled();
+        expect(modals.customAlert).toHaveBeenCalledWith(
+            'Cloud Recovery Complete',
+            expect.stringContaining('published as the new cloud snapshot')
+        );
+    });
+
+    it('should show a setup message when Google OAuth is not configured', async () => {
+        vi.mocked(api.connectGoogleDrive).mockRejectedValue(
+            new Error('Google Drive sync is not configured for this build. Provide KECHIMOCHI_GOOGLE_CLIENT_ID and KECHIMOCHI_GOOGLE_CLIENT_SECRET in a private .env.local or release build environment before building the desktop app.')
+        );
+
+        await renderAndClickEnableSync(container);
+        await expectLatestAlert('Cloud Sync Setup Needed', 'KECHIMOCHI_GOOGLE_CLIENT_SECRET');
+    });
+
+    it('should show a specific message when the configured Google OAuth client requires a secret', async () => {
+        vi.mocked(api.connectGoogleDrive).mockRejectedValue(
+            new Error('Server returned error response: invalid_request: client_secret is missing.')
+        );
+
+        await renderAndClickEnableSync(container);
+        await expectLatestAlert('Cloud Sync OAuth Config Error', 'KECHIMOCHI_GOOGLE_CLIENT_SECRET');
+    });
+
+    it('should time out the enable sync browser handoff and close the blocking modal', async () => {
+        vi.useFakeTimers();
+        const close = vi.fn();
+        vi.mocked(modals.showBlockingStatus).mockReturnValue({ close });
+        vi.mocked(api.connectGoogleDrive).mockImplementation(
+            () => new Promise(() => undefined)
+        );
+
+        await renderAndClickEnableSync(container);
+
+        await vi.advanceTimersByTimeAsync(60_000);
+
+        await expectLatestAlert('Google Sign-In Timed Out', 'try Enable Sync again');
+        expect(close).toHaveBeenCalled();
+        vi.useRealTimers();
+    });
+
+    it('should show a specific timeout message when creating a cloud profile stalls', async () => {
+        vi.mocked(api.connectGoogleDrive).mockResolvedValue(buildGoogleDriveAuthSession());
+        vi.mocked(api.listRemoteSyncProfiles).mockResolvedValue([]);
+        vi.mocked(modals.showSyncEnablementWizard).mockResolvedValue({ action: 'create_new' });
+        vi.mocked(api.createRemoteSyncProfile).mockRejectedValue(
+            new Error('Google Drive request timed out. Please try again.')
+        );
+
+        await renderAndClickEnableSync(container);
+        await expectLatestAlert('Cloud Sync Timed Out', 'took too long to respond');
+    });
+
+    it('should show a busy message when a previous sync attempt still holds the lock', async () => {
+        vi.mocked(api.connectGoogleDrive).mockRejectedValue(
+            new Error('Another sync operation is already in progress')
+        );
+
+        await renderAndClickEnableSync(container);
+        await expectLatestAlert('Cloud Sync Busy', 'previous sync attempt');
+    });
+
+    it('should show sync conflicts and resolve them from the profile card', async () => {
+        vi.mocked(api.getSyncStatus)
+            .mockResolvedValueOnce(buildConnectedSyncStatus({
+                state: 'conflict_pending',
+                conflict_count: 1,
+            }))
+            .mockResolvedValueOnce(buildConnectedSyncStatus({
+                state: 'dirty',
+                conflict_count: 0,
+            }));
+        vi.mocked(api.getSyncConflicts).mockResolvedValue([{
+            kind: 'media_field_conflict',
+            media_uid: 'uid_1',
+            field_name: 'title',
+            base_value: null,
+            local_value: 'Local Title',
+            remote_value: 'Remote Title',
+        }]);
+        vi.mocked(api.resolveSyncConflict).mockResolvedValue(buildSyncActionResult({
+            sync_status: { state: 'dirty', conflict_count: 0 },
+        }));
+
+        const view = new ProfileView(container);
+        await view.loadData();
+        view.setState({ showSyncConflicts: true });
+
+        await vi.waitFor(() => expect(container.querySelector('[data-sync-resolution-kind="media_field"]')).not.toBeNull());
+        (container.querySelector('[data-sync-resolution-kind="media_field"][data-sync-resolution-side="remote"]') as HTMLButtonElement).click();
+
+        await vi.waitFor(() => expect(api.resolveSyncConflict).toHaveBeenCalledWith(0, { kind: 'media_field', side: 'remote' }));
+        await vi.waitFor(() => expect(modals.customAlert).toHaveBeenCalledWith(
+            'All Conflicts Resolved',
+            expect.stringContaining('Run Sync Now')
+        ));
+    });
+
+    it('should warn before renaming a synced profile', async () => {
+        vi.mocked(api.getSyncStatus).mockResolvedValue(buildConnectedSyncStatus());
+        vi.mocked(modals.customConfirm).mockResolvedValue(true);
+
+        const view = new ProfileView(container);
+        view.render();
+
+        await vi.waitFor(() => expect(container.querySelector('#profile-name')).not.toBeNull());
+        container.querySelector('#profile-name')?.dispatchEvent(new MouseEvent('dblclick'));
+
+        await vi.waitFor(() => expect(modals.customConfirm).toHaveBeenCalledWith(
+            'Rename Synced Profile',
+            expect.stringContaining('synced display name'),
+            'btn-primary',
+            'Continue'
+        ));
+        expect(container.querySelector('input[type="text"]')).not.toBeNull();
     });
 
     it('should calculate report', async () => {

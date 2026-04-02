@@ -3,6 +3,7 @@
  */
 /// <reference types="@wdio/globals/types" />
 import { Logger } from '../../src/core/logger';
+import { waitForNoActiveOverlays } from './common.js';
 import { navigateTo, verifyActiveView } from './navigation.js';
 
 export type LibraryLayoutMode = 'grid' | 'list';
@@ -72,9 +73,11 @@ export async function addMedia(title: string, type: string, contentType?: string
         await navigateTo('media');
     }
 
+    await waitForNoActiveOverlays(5_000).catch(() => undefined);
+
     const addBtn = $('#btn-add-media-grid');
-    await addBtn.waitForClickable({ timeout: 5000 });
-    await addBtn.click();
+    await addBtn.waitForDisplayed({ timeout: 5000 });
+    await safeClick(addBtn);
 
     const titleInput = $('#add-media-title');
     await titleInput.waitForDisplayed({ timeout: 5000 });
@@ -91,11 +94,11 @@ export async function addMedia(title: string, type: string, contentType?: string
     }
 
     const confirmBtn = $('#add-media-confirm');
-    await confirmBtn.waitForClickable({ timeout: 5000 });
+    await confirmBtn.waitForDisplayed({ timeout: 5000 });
     
     const { getTopmostVisibleOverlay, waitForOverlayToDisappear } = await import('./common.js');
     const overlay = await getTopmostVisibleOverlay('#add-media-confirm');
-    await confirmBtn.click();
+    await safeClick(confirmBtn);
     await waitForOverlayToDisappear(overlay);
 
     // Addition can either auto-open detail or return to grid depending on timing.
@@ -151,7 +154,9 @@ export async function setSearchQuery(query: string): Promise<void> {
 }
 
 async function waitForLibraryRefresh(): Promise<void> {
-    await browser.pause(250);
+    await browser.executeAsync((done) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => done(true)));
+    });
 }
 
 async function waitForFilterPanelState(expanded: boolean): Promise<void> {
@@ -176,14 +181,54 @@ async function waitForFilterPanelState(expanded: boolean): Promise<void> {
 }
 
 async function safeClick(element: WebdriverIO.Element): Promise<void> {
-    try {
-        await element.waitForClickable({ timeout: 5000 });
-        await element.click();
-    } catch {
-        await browser.execute((el) => {
-            (el as HTMLElement).click();
-        }, element);
+    let lastError: unknown;
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+            await element.waitForExist({ timeout: 5000 });
+            await element.scrollIntoView().catch(() => { });
+            await element.waitForDisplayed({ timeout: 5000 });
+            await element.waitForClickable({ timeout: 2000 }).catch(() => { });
+            await element.click();
+            return;
+        } catch {
+            // Fall through to the selector-based click fallback below.
+        }
+
+        try {
+            const selector = (element as unknown as { selector?: unknown }).selector;
+            if (typeof selector !== 'string') {
+                throw new TypeError('Library click fallback requires a selector');
+            }
+
+            await browser.execute((resolvedSelector) => {
+                const nodes = Array.from(document.querySelectorAll(resolvedSelector as string)).reverse();
+                const node = nodes.find((candidate) => {
+                    if (!(candidate instanceof HTMLElement)) {
+                        return false;
+                    }
+
+                    const style = globalThis.getComputedStyle(candidate);
+                    const rect = candidate.getBoundingClientRect();
+                    return style.display !== 'none'
+                        && style.visibility !== 'hidden'
+                        && rect.width > 0
+                        && rect.height > 0;
+                });
+
+                if (!(node instanceof HTMLElement)) {
+                    throw new TypeError(`Could not resolve clickable element for selector ${resolvedSelector}`);
+                }
+                node.click();
+            }, selector);
+            return;
+        } catch (error) {
+            lastError = error;
+            await browser.pause(150 * (attempt + 1));
+        }
     }
+
+    throw lastError instanceof Error ? lastError : new Error('Failed to click library element');
 }
 
 export async function setFiltersExpanded(expanded: boolean): Promise<void> {
@@ -288,7 +333,10 @@ export async function setHideArchived(hide: boolean): Promise<void> {
         // The input itself is hidden (opacity 0), so we click the slider (.slider)
         const slider = checkbox.nextElement();
         await slider.click();
-        await browser.pause(300);
+        await browser.waitUntil(async () => (await checkbox.isSelected()) === hide, {
+            timeout: 3_000,
+            timeoutMsg: `"Hide Archived" did not become ${hide ? 'checked' : 'unchecked'}`
+        });
     }
 }
 
@@ -354,12 +402,13 @@ export async function isMediaNotVisible(title: string): Promise<boolean> {
  * Clicks a media item in the active library layout by its title.
  */
 export async function clickMediaItem(title: string): Promise<void> {
+    await waitForNoActiveOverlays(5_000).catch(() => undefined);
     const item = await findMediaItemInternal(title);
     if (!item) {
         throw new Error(`[E2E] Failed to click "${title}": not found in the active library layout.`);
     }
     await item.waitForDisplayed({ timeout: 5000 });
-    await item.click();
+    await safeClick(item);
     
     // Wait for the detail view root to be present and displayed before returning
     const detailHeader = $('#media-detail-header');

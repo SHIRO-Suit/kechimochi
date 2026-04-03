@@ -3,10 +3,18 @@ import { MediaView } from './components/media_view';
 import { ProfileView } from './components/profile';
 import { TimelineView } from './components/timeline';
 import {
-    initializeUserDb, getUsername, getSetting, setSetting, getProfilePicture, getStartupError
+    initializeUserDb,
+    getUsername,
+    getSetting,
+    setSetting,
+    getProfilePicture,
+    getStartupError,
+    shouldSkipLegacyLocalProfileMigration,
 } from './api';
 import {
-    initialProfilePrompt, showLogActivityModal
+    showInitialSetupPrompt,
+    showLogActivityModal,
+    customAlert,
 } from './modals';
 import { syncAppShell } from './app_shell';
 import { initServices, getServices } from './services';
@@ -17,6 +25,14 @@ import { getProfileInitials, profilePictureToDataUrl } from './utils/profile_pic
 import { STORAGE_KEYS, SETTING_KEYS, VIEW_NAMES, EVENTS, DEFAULTS } from './constants';
 import type { ProfilePicture } from './types';
 import { UpdateManager } from './updates';
+import {
+    attachSelectedRemoteProfile,
+    resolveSyncEnablementSelection,
+    runBlockingStatus,
+    runSyncProgressBlockingStatus,
+    showNoCloudProfilesFoundAlert,
+    stringifySyncEnablementError,
+} from './sync_enablement';
 
 // Support global date mocking for E2E tests
 let mockDateStr: string | null = null;
@@ -299,24 +315,79 @@ export class App {
             return false;
         } else {
             // Check for previous user profile in localStorage to migrate it
-            const oldProfile = localStorage.getItem(STORAGE_KEYS.CURRENT_PROFILE);
+            const shouldSkipLegacyProfileMigration = await shouldSkipLegacyLocalProfileMigration();
+            const oldProfile = shouldSkipLegacyProfileMigration
+                ? null
+                : localStorage.getItem(STORAGE_KEYS.CURRENT_PROFILE);
             if (oldProfile && oldProfile !== 'default') {
                 await initializeUserDb(oldProfile);
                 await setSetting(SETTING_KEYS.PROFILE_NAME, oldProfile);
                 this.currentProfile = oldProfile;
             } else {
-                // Initialize default db
                 const osUsername = await getUsername();
-                const newName = await initialProfilePrompt(osUsername);
-                await initializeUserDb(newName);
-                await setSetting(SETTING_KEYS.PROFILE_NAME, newName);
-                this.currentProfile = newName;
+                await this.handleInitialSetup(osUsername);
             }
         }
 
         localStorage.setItem(STORAGE_KEYS.CURRENT_PROFILE, this.currentProfile);
         await this.refreshProfileChrome();
         return true;
+    }
+
+    private async handleInitialSetup(defaultProfileName: string): Promise<void> {
+        if (!getServices().isDesktop()) {
+            await this.createLocalProfile(defaultProfileName);
+            return;
+        }
+
+        while (true) {
+            const choice = await showInitialSetupPrompt(defaultProfileName, { allowCloudSync: true });
+            if (choice.action === 'create_local') {
+                await this.createLocalProfile(choice.profileName);
+                return;
+            }
+
+            const didAttachRemote = await this.attachRemoteProfileDuringSetup();
+            if (didAttachRemote) {
+                return;
+            }
+        }
+    }
+
+    private async createLocalProfile(profileName: string): Promise<void> {
+        await initializeUserDb(profileName);
+        await setSetting(SETTING_KEYS.PROFILE_NAME, profileName);
+        this.currentProfile = profileName;
+    }
+
+    private async attachRemoteProfileDuringSetup(): Promise<boolean> {
+        await initializeUserDb();
+
+        try {
+            const selection = await resolveSyncEnablementSelection({
+                googleAuthenticated: false,
+                withBlockingStatus: runBlockingStatus,
+                wizardOptions: { allowCreateNew: false, title: 'Import From Google Drive' },
+                onNoProfiles: showNoCloudProfilesFoundAlert,
+                connectPromptText: 'Opening the browser sign-in flow for Google Drive...',
+            });
+            if (selection?.action !== 'attach') {
+                return false;
+            }
+
+            await attachSelectedRemoteProfile(
+                runSyncProgressBlockingStatus,
+                selection.profileId,
+                'Importing Cloud Profile',
+                'Downloading remote data, applying changes on this device, and publishing the merged result...',
+            );
+
+            this.currentProfile = await getSetting(SETTING_KEYS.PROFILE_NAME) || DEFAULTS.PROFILE;
+            return true;
+        } catch (error) {
+            await customAlert('Cloud Sync Error', `Failed to import from Google Drive: ${stringifySyncEnablementError(error)}`);
+            return false;
+        }
     }
 
     private async loadTheme() {

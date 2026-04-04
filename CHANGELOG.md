@@ -9,6 +9,8 @@ The format is based on Keep a Changelog, with one section per released version.
 ### Changed
  - Jiten importer now shows the media cover from the parent if the child has no specific cover
  - Removed desktop-specific references that showed up in the Android app
+ - In minified mode, the "back to library" button has been removed
+ - The "delete media" button has been moved to a context three-dots menu
 
 ## [0.2.4] - 2026-04-04
 

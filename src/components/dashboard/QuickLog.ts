@@ -15,7 +15,7 @@ interface QuickLogProps {
     onLogged: () => Promise<void>;
 }
 
-const MAX_QUICK_LOG_ITEMS = 5;
+const MAX_QUICK_LOG_ITEMS = 6;
 
 export class QuickLog extends Component<QuickLogState> {
     private readonly props: QuickLogProps;

@@ -64,4 +64,24 @@ describe('QuickLog', () => {
             expect(onLogged).toHaveBeenCalled();
         });
     });
+
+    it('renders up to 6 quick log items', () => {
+        const mediaList: Media[] = Array.from({ length: 7 }, (_, index) => ({
+            id: index + 1,
+            title: `Item ${index + 1}`,
+            media_type: 'Reading',
+            status: 'Active',
+            language: 'Japanese',
+            description: '',
+            cover_image: '',
+            extra_data: '{}',
+            content_type: 'Manga',
+            tracking_status: 'Ongoing',
+        }));
+
+        const component = new QuickLog(container, { logs: [], mediaList }, { onLogged: vi.fn().mockResolvedValue(undefined) });
+        component.render();
+
+        expect(container.querySelectorAll('.quick-log-item')).toHaveLength(6);
+    });
 });

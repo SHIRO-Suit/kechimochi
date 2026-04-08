@@ -1288,6 +1288,12 @@ input:focus, select:focus {
   transform: translateX(2px);
 }
 
+@media (min-width: 1025px) {
+  #quick-log-list .quick-log-item:nth-child(6) {
+    display: none !important;
+  }
+}
+
 /* Badges */
 .badge {
   display: inline-flex;
@@ -2289,6 +2295,19 @@ input:checked + .slider:before {
     height: 380px;
   }
 
+  /* The dashboard stacks at this breakpoint, so Quick Log also needs a stacked layout.
+     Use a responsive grid here instead of keeping the desktop single-column list. */
+  #quick-log-list {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+    gap: 0.5rem 0.85rem !important;
+    align-items: start;
+  }
+
+  .quick-log-item {
+    width: 100% !important;
+  }
+
   #media-content-area {
     position: relative;
     flex-direction: column !important;
@@ -2425,9 +2444,13 @@ input:checked + .slider:before {
   }
 }
 
-@media (max-width: 1024px) and (orientation: portrait) {
+@media (max-width: 820px) {
   .quick-log-card {
     gap: 0.7rem !important;
+  }
+
+  #quick-log-list .quick-log-item:nth-child(6) {
+    display: none !important;
   }
 
   #quick-log-list {

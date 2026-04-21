@@ -108,6 +108,7 @@ describe('main.ts initialization', () => {
     it('should show the dev build badge by default', async () => {
         await bootApp();
         expect(document.getElementById('dev-build-badge')?.textContent).toBe('DEV BUILD 0.1.0-dev.test');
+        expect(document.getElementById('mobile-build-badge')?.textContent).toBe('DEV BUILD 0.1.0-dev.test');
     });
 
     it('should show the beta release badge for release builds', async () => {
@@ -116,6 +117,67 @@ describe('main.ts initialization', () => {
         await bootApp();
 
         expect(document.getElementById('dev-build-badge')?.textContent).toBe('BETA VERSION 0.1.0');
+        expect(document.getElementById('mobile-build-badge')?.textContent).toBe('BETA VERSION 0.1.0');
+    });
+
+    it('should run sync from the mobile sync button when changes are pending', async () => {
+        vi.mocked(api.getSyncStatus).mockResolvedValue({
+            state: 'dirty',
+            google_authenticated: true,
+            sync_profile_id: 'prof_1',
+            profile_name: 'Remote User',
+            google_account_email: 'sync@example.com',
+            last_sync_at: '2026-04-03T00:00:00Z',
+            device_name: 'Desktop',
+            conflict_count: 0,
+            backup_size_bytes: 0,
+        });
+
+        await bootApp();
+
+        (document.getElementById('mobile-sync-status-btn') as HTMLButtonElement).click();
+
+        await vi.waitFor(() => expect(api.runSync).toHaveBeenCalled());
+    });
+
+    it('should run sync from the desktop nav sync button when changes are pending', async () => {
+        vi.mocked(api.getSyncStatus).mockResolvedValue({
+            state: 'dirty',
+            google_authenticated: true,
+            sync_profile_id: 'prof_1',
+            profile_name: 'Remote User',
+            google_account_email: 'sync@example.com',
+            last_sync_at: '2026-04-03T00:00:00Z',
+            device_name: 'Desktop',
+            conflict_count: 0,
+            backup_size_bytes: 0,
+        });
+
+        await bootApp();
+
+        (document.getElementById('nav-sync-status-btn') as HTMLButtonElement).click();
+
+        await vi.waitFor(() => expect(api.runSync).toHaveBeenCalled());
+    });
+
+    it('should navigate to profile from the mobile sync button when conflicts are pending', async () => {
+        vi.mocked(api.getSyncStatus).mockResolvedValue({
+            state: 'conflict_pending',
+            google_authenticated: true,
+            sync_profile_id: 'prof_1',
+            profile_name: 'Remote User',
+            google_account_email: 'sync@example.com',
+            last_sync_at: '2026-04-03T00:00:00Z',
+            device_name: 'Desktop',
+            conflict_count: 2,
+            backup_size_bytes: 0,
+        });
+
+        await bootApp();
+
+        (document.getElementById('mobile-sync-status-btn') as HTMLButtonElement).click();
+
+        await vi.waitFor(() => expect(document.querySelector('[data-view="profile"]')?.classList.contains('active')).toBe(true));
     });
 
     it('should switch views', async () => {

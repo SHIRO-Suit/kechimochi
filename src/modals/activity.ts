@@ -68,7 +68,7 @@ export async function showLogActivityModal(prefillMediaTitle?: string, editLog?:
         // Determine the default activity type
         const prefillMedia = mediaList.find(m => m.title.toLowerCase() === (editLog?.title || prefillMediaTitle || '').toLowerCase());
         const defaultActivityType = editLog?.media_type || prefillMedia?.media_type || 'Reading';
-
+            
         overlay.innerHTML = `
             <div class="modal-content" style="width: 450px;">
                 <h3>${editLog ? 'Edit Activity' : 'Log Activity'}</h3>
@@ -77,6 +77,18 @@ export async function showLogActivityModal(prefillMediaTitle?: string, editLog?:
                         <label style="font-size: 0.85rem; color: var(--text-secondary);">Media Title</label>
                         <input type="text" id="activity-media" list="media-datalist" autocomplete="off" style="background: var(--bg-dark); color: var(--text-primary); border: 1px solid var(--border-color); padding: 0.5rem; border-radius: var(--radius-sm);" value="${escapedTitle}" ${editLog ? 'disabled' : ''} required oninvalid="this.setCustomValidity('Media Title is required')" oninput="this.setCustomValidity('')" />
                         <datalist id="media-datalist">${activeMediaOptions}</datalist>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; align-items: center;">
+                        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.5rem;">
+                                <label style="font-size: 0.85rem; color: var(--text-secondary);">Activity Type</label>
+                                <select id="activity-type" style="background: var(--bg-dark); color: var(--text-primary); border: 1px solid var(--border-color); padding: 0.5rem; border-radius: var(--radius-sm); width: 100%;">
+                                    ${ACTIVITY_TYPES.map(t => `<option value="${t}" ${t === defaultActivityType ? 'selected' : ''}>${t}</option>`).join('')}
+                                </select>
+                        </div>
+                        <div id="mobile-date-field" style="display: none; flex-direction: column; gap: 0.5rem;">
+                            <label style="font-size: 0.85rem; color: var(--text-secondary);">Date</label>
+                            <input id="mobile-date-input" type="date" />
+                        </div>
                     </div>
                     <div style="display: flex; gap: 1rem; width: 100%;">
                         <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.5rem;">
@@ -87,14 +99,8 @@ export async function showLogActivityModal(prefillMediaTitle?: string, editLog?:
                             <label style="font-size: 0.85rem; color: var(--text-secondary);">Characters</label>
                             <input type="number" id="activity-characters" value="${editLog?.characters || 0}" min="0" step="1" style="background: var(--bg-dark); color: var(--text-primary); border: 1px solid var(--border-color); padding: 0.5rem; border-radius: var(--radius-sm); width: 100%;" />
                         </div>
-                        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.5rem;">
-                            <label style="font-size: 0.85rem; color: var(--text-secondary);">Activity Type</label>
-                            <select id="activity-type" style="background: var(--bg-dark); color: var(--text-primary); border: 1px solid var(--border-color); padding: 0.5rem; border-radius: var(--radius-sm); width: 100%;">
-                                ${ACTIVITY_TYPES.map(t => `<option value="${t}" ${t === defaultActivityType ? 'selected' : ''}>${t}</option>`).join('')}
-                            </select>
-                        </div>
                     </div>
-                    <div style="display: flex; flex-direction: column; gap: 0.5rem; align-items: center;">
+                    <div id="desktop-date-field" style="display: flex; flex-direction: column; gap: 0.5rem; align-items: center;">
                         <label style="font-size: 0.85rem; color: var(--text-secondary);">Date</label>
                         <div id="activity-cal-container"></div>
                     </div>

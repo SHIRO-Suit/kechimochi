@@ -381,11 +381,7 @@ export class Dashboard extends Component<DashboardState> {
                 input.focus();
                 input.select();
             });
-
-            // Adjust layout for pagination
-            /*adjusts better to smaller screens without that*/
-            //(this.containers.logs.querySelector('#logs-header') as HTMLElement).style.display = 'grid';
-            //(this.containers.logs.querySelector('#logs-header') as HTMLElement).style.gridTemplateColumns = '1fr auto 1fr';
+            
         } else {
             this.containers.pagination.innerHTML = '';
             (this.containers.logs.querySelector('#logs-header') as HTMLElement).style.display = 'flex';

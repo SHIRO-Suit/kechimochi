@@ -49,6 +49,19 @@ vi.mock('../src/modals', async () => {
     return createMainModalMock();
 });
 
+const createSyncStatusMock = (overrides: Partial<ReturnType<typeof api.getSyncStatus>> = {}) => ({
+    state: 'dirty' as const,
+    google_authenticated: true,
+    sync_profile_id: 'prof_1',
+    profile_name: 'Remote User',
+    google_account_email: 'sync@example.com',
+    last_sync_at: '2026-04-03T00:00:00Z',
+    device_name: 'Desktop',
+    conflict_count: 0,
+    backup_size_bytes: 0,
+    ...overrides,
+});
+
 describe('main.ts initialization', () => {
     const bootApp = async () => {
         const { App } = await import('../src/main');
@@ -121,17 +134,7 @@ describe('main.ts initialization', () => {
     });
 
     it('should run sync from the mobile sync button when changes are pending', async () => {
-        vi.mocked(api.getSyncStatus).mockResolvedValue({
-            state: 'dirty',
-            google_authenticated: true,
-            sync_profile_id: 'prof_1',
-            profile_name: 'Remote User',
-            google_account_email: 'sync@example.com',
-            last_sync_at: '2026-04-03T00:00:00Z',
-            device_name: 'Desktop',
-            conflict_count: 0,
-            backup_size_bytes: 0,
-        });
+        vi.mocked(api.getSyncStatus).mockResolvedValue(createSyncStatusMock());
 
         await bootApp();
 
@@ -141,17 +144,7 @@ describe('main.ts initialization', () => {
     });
 
     it('should run sync from the desktop nav sync button when changes are pending', async () => {
-        vi.mocked(api.getSyncStatus).mockResolvedValue({
-            state: 'dirty',
-            google_authenticated: true,
-            sync_profile_id: 'prof_1',
-            profile_name: 'Remote User',
-            google_account_email: 'sync@example.com',
-            last_sync_at: '2026-04-03T00:00:00Z',
-            device_name: 'Desktop',
-            conflict_count: 0,
-            backup_size_bytes: 0,
-        });
+        vi.mocked(api.getSyncStatus).mockResolvedValue(createSyncStatusMock());
 
         await bootApp();
 
@@ -161,17 +154,7 @@ describe('main.ts initialization', () => {
     });
 
     it('should navigate to profile from the mobile sync button when conflicts are pending', async () => {
-        vi.mocked(api.getSyncStatus).mockResolvedValue({
-            state: 'conflict_pending',
-            google_authenticated: true,
-            sync_profile_id: 'prof_1',
-            profile_name: 'Remote User',
-            google_account_email: 'sync@example.com',
-            last_sync_at: '2026-04-03T00:00:00Z',
-            device_name: 'Desktop',
-            conflict_count: 2,
-            backup_size_bytes: 0,
-        });
+        vi.mocked(api.getSyncStatus).mockResolvedValue(createSyncStatusMock({ state: 'conflict_pending', conflict_count: 2 }));
 
         await bootApp();
 

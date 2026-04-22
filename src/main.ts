@@ -436,39 +436,25 @@ export class App {
         this.navUserNameEl.textContent = this.currentProfile;
 
         const initials = getProfileInitials(this.currentProfile);
-        if (this.navUserAvatarFallbackEl) {
-            this.navUserAvatarFallbackEl.textContent = initials;
-        }
-        if (this.navProfileTabAvatarFallbackEl) {
-            this.navProfileTabAvatarFallbackEl.textContent = initials;
+        const fallbacks = [this.navUserAvatarFallbackEl, this.navProfileTabAvatarFallbackEl];
+        for (const fallback of fallbacks) {
+            if (fallback) fallback.textContent = initials;
         }
 
         const profilePicture = await this.loadProfilePicture();
         const profilePictureSrc = profilePictureToDataUrl(profilePicture);
-        if (this.navUserAvatarImgEl) {
-            if (profilePictureSrc) {
-                this.navUserAvatarImgEl.src = profilePictureSrc;
-                this.navUserAvatarImgEl.style.display = 'block';
-                if (this.navUserAvatarFallbackEl) this.navUserAvatarFallbackEl.style.display = 'none';
-            } else {
-                this.navUserAvatarImgEl.removeAttribute('src');
-                this.navUserAvatarImgEl.style.display = 'none';
-                if (this.navUserAvatarFallbackEl) this.navUserAvatarFallbackEl.style.display = 'flex';
+
+        const updateAvatar = (img: HTMLImageElement | null, fallback: HTMLElement | null, el: HTMLElement | null) => {
+            if (img) {
+                img.src = profilePictureSrc || '';
+                img.style.display = profilePictureSrc ? 'block' : 'none';
+                if (fallback) fallback.style.display = profilePictureSrc ? 'none' : 'flex';
             }
-        }
-        if (this.navProfileTabAvatarImgEl) {
-            if (profilePictureSrc) {
-                this.navProfileTabAvatarImgEl.src = profilePictureSrc;
-                this.navProfileTabAvatarImgEl.style.display = 'block';
-                if (this.navProfileTabAvatarFallbackEl) this.navProfileTabAvatarFallbackEl.style.display = 'none';
-            } else {
-                this.navProfileTabAvatarImgEl.removeAttribute('src');
-                this.navProfileTabAvatarImgEl.style.display = 'none';
-                if (this.navProfileTabAvatarFallbackEl) this.navProfileTabAvatarFallbackEl.style.display = 'flex';
-            }
-        }
-        this.navUserAvatarEl?.setAttribute('aria-label', `${this.currentProfile} profile picture`);
-        this.navProfileTabAvatarEl?.setAttribute('aria-label', `${this.currentProfile} profile picture`);
+            el?.setAttribute('aria-label', `${this.currentProfile} profile picture`);
+        };
+
+        updateAvatar(this.navUserAvatarImgEl, this.navUserAvatarFallbackEl, this.navUserAvatarEl);
+        updateAvatar(this.navProfileTabAvatarImgEl, this.navProfileTabAvatarFallbackEl, this.navProfileTabAvatarEl);
     }
 
     private async loadProfilePicture(): Promise<ProfilePicture | null> {
@@ -518,23 +504,29 @@ export class App {
         try {
             const syncStatus = await getSyncStatus();
 
-            const attentionState = syncStatus.conflict_count > 0 || syncStatus.state === 'conflict_pending'
-                ? 'conflict'
-                : syncStatus.state === 'dirty'
-                    ? 'dirty'
-                    : syncStatus.state === 'syncing'
-                        ? 'syncing'
-                        : syncStatus.state === 'error' || (syncStatus.sync_profile_id && !syncStatus.google_authenticated)
-                            ? 'error'
-                            : 'idle';
+            let attentionState: string;
+            if (syncStatus.conflict_count > 0 || syncStatus.state === 'conflict_pending') {
+                attentionState = 'conflict';
+            } else if (syncStatus.state === 'dirty') {
+                attentionState = 'dirty';
+            } else if (syncStatus.state === 'syncing') {
+                attentionState = 'syncing';
+            } else if (syncStatus.state === 'error' || (syncStatus.sync_profile_id && !syncStatus.google_authenticated)) {
+                attentionState = 'error';
+            } else {
+                attentionState = 'idle';
+            }
 
-            const title = attentionState === 'conflict'
-                ? `Resolve ${syncStatus.conflict_count} sync conflict${syncStatus.conflict_count === 1 ? '' : 's'}`
-                : attentionState === 'dirty'
-                    ? 'Sync pending changes'
-                    : attentionState === 'idle'
-                        ? 'Cloud sync'
-                        : 'Cloud sync status';
+            let title: string;
+            if (attentionState === 'conflict') {
+                title = `Resolve ${syncStatus.conflict_count} sync conflict${syncStatus.conflict_count === 1 ? '' : 's'}`;
+            } else if (attentionState === 'dirty') {
+                title = 'Sync pending changes';
+            } else if (attentionState === 'idle') {
+                title = 'Cloud sync';
+            } else {
+                title = 'Cloud sync status';
+            }
 
             buttons.forEach(({ button }) => {
                 button.dataset.visible = 'true';
